@@ -165,46 +165,38 @@ async def get_timeline(
         if record.latency_ms:
             aggregated[key].latencies.append(record.latency_ms)
 
-    # Determine dominant category and calculate average latency
+    # Calculate bucket uptime and time ranges
     response = []
     for key in sorted(aggregated.keys()):
         data = aggregated[key]
         counts = data.counts
 
-        # Priority: red > yellow > green
-        if counts.red > 0:
-            dominant_category = "red"
-        elif counts.yellow > 0:
-            dominant_category = "yellow"
-        else:
-            dominant_category = "green"
-
-        # Get the most common status name for the dominant category
-        if dominant_category == "red":
-            status_names_list = data.status_names.red
-        elif dominant_category == "yellow":
-            status_names_list = data.status_names.yellow
-        else:
-            status_names_list = data.status_names.green
-
-        if status_names_list:
-            # Use the most common status name
-            status_name = max(set(status_names_list), key=status_names_list.count)
-        else:
-            status_name = "未知"
+        total_count = counts.green + counts.yellow + counts.red
+        bucket_uptime = (counts.green / total_count * 100) if total_count > 0 else 0.0
 
         avg_latency = (
             sum(data.latencies) / len(data.latencies) if data.latencies else None
         )
 
-        total_count = counts.green + counts.yellow + counts.red
+        # Calculate time_range_end based on aggregation type
+        if aggregation == "hour":
+            time_range_end = data.timestamp + timedelta(hours=1)
+        elif aggregation == "6hour":
+            time_range_end = data.timestamp + timedelta(hours=6)
+        else:  # day
+            time_range_end = data.timestamp + timedelta(days=1)
 
         response.append(
             TimelinePoint(
                 timestamp=data.timestamp,
-                status_category=dominant_category,
-                status_name=status_name,
+                time_range_end=time_range_end,
+                status_category=None,
+                status_name=None,
                 count=total_count,
+                green_count=counts.green,
+                yellow_count=counts.yellow,
+                red_count=counts.red,
+                uptime_percentage=bucket_uptime,
                 avg_latency_ms=avg_latency,
             )
         )
@@ -348,28 +340,10 @@ async def get_timeline_batch(
                 data = aggregated[key]
                 counts = data.counts
 
-                # Priority: red > yellow > green
-                if counts.red > 0:
-                    dominant_category = "red"
-                elif counts.yellow > 0:
-                    dominant_category = "yellow"
-                else:
-                    dominant_category = "green"
-
-                # Get the most common status name for the dominant category
-                if dominant_category == "red":
-                    status_names_list = data.status_names.red
-                elif dominant_category == "yellow":
-                    status_names_list = data.status_names.yellow
-                else:
-                    status_names_list = data.status_names.green
-
-                if status_names_list:
-                    status_name = max(
-                        set(status_names_list), key=status_names_list.count
-                    )
-                else:
-                    status_name = "未知"
+                total_count = counts.green + counts.yellow + counts.red
+                bucket_uptime = (
+                    (counts.green / total_count * 100) if total_count > 0 else 0.0
+                )
 
                 avg_latency = (
                     sum(data.latencies) / len(data.latencies)
@@ -377,24 +351,46 @@ async def get_timeline_batch(
                     else None
                 )
 
-                total_count = counts.green + counts.yellow + counts.red
+                # Calculate time_range_end based on aggregation type
+                if aggregation == "hour":
+                    time_range_end = data.timestamp + timedelta(hours=1)
+                elif aggregation == "6hour":
+                    time_range_end = data.timestamp + timedelta(hours=6)
+                else:  # day
+                    time_range_end = data.timestamp + timedelta(days=1)
 
                 timeline.append(
                     TimelinePoint(
                         timestamp=data.timestamp,
-                        status_category=dominant_category,
-                        status_name=status_name,
+                        time_range_end=time_range_end,
+                        status_category=None,
+                        status_name=None,
                         count=total_count,
+                        green_count=counts.green,
+                        yellow_count=counts.yellow,
+                        red_count=counts.red,
+                        uptime_percentage=bucket_uptime,
                         avg_latency_ms=avg_latency,
                     )
                 )
 
-        # Calculate uptime percentage
-        green_count = sum(1 for point in timeline if point.status_category == "green")
-        total_count = len(timeline)
-        uptime_percentage = (
-            (green_count / total_count * 100) if total_count > 0 else 0.0
-        )
+        # Calculate overall uptime percentage
+        if aggregation == "none":
+            # For non-aggregated data, count green status points
+            green_count = sum(
+                1 for point in timeline if point.status_category == "green"
+            )
+            total_count = len(timeline)
+            uptime_percentage = (
+                (green_count / total_count * 100) if total_count > 0 else 0.0
+            )
+        else:
+            # For aggregated data, use raw counts
+            total_green = sum(point.green_count for point in timeline)
+            total_all = sum(point.count for point in timeline)
+            uptime_percentage = (
+                (total_green / total_all * 100) if total_all > 0 else 0.0
+            )
 
         items.append(
             TimelineBatchItem(

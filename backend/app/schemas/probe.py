@@ -21,9 +21,18 @@ class ProbeHistoryResponse(BaseModel):
 
 class TimelinePoint(BaseModel):
     timestamp: datetime
-    status_category: Literal["green", "yellow", "red"]
-    status_name: str
+    time_range_end: datetime | None = (
+        None  # For aggregated data, marks end of time range
+    )
+    status_category: Literal["green", "yellow", "red"] | None = (
+        None  # Only for non-aggregated
+    )
+    status_name: str | None = None  # Only for non-aggregated
     count: int = 1
+    green_count: int = 0  # For aggregated data
+    yellow_count: int = 0  # For aggregated data
+    red_count: int = 0  # For aggregated data
+    uptime_percentage: float | None = None  # For aggregated data
     avg_latency_ms: float | None = None
 
 

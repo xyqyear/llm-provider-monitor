@@ -169,9 +169,14 @@ export interface ProbeHistory {
 
 export interface TimelinePoint {
   timestamp: string;
-  statusCategory: StatusCategory;
-  statusName: string;
+  timeRangeEnd: string | null;  // For aggregated data, marks end of time range
+  statusCategory: StatusCategory | null;  // Only for non-aggregated (90min)
+  statusName: string | null;  // Only for non-aggregated (90min)
   count: number;
+  greenCount: number;  // For aggregated data
+  yellowCount: number;  // For aggregated data
+  redCount: number;  // For aggregated data
+  uptimePercentage: number | null;  // For aggregated data, uptime within bucket
   avgLatencyMs: number | null;
 }
 

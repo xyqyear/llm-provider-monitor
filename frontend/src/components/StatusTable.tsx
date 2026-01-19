@@ -120,7 +120,6 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     return (
                       <MiniTimeline
                         timeline={data.timeline}
-                        uptimePercentage={data.uptimePercentage}
                         timeRange={timeRange}
                       />
                     );
@@ -217,7 +216,6 @@ function StatusCard({
                 <div className="mb-2">
                   <MiniTimeline
                     timeline={data.timeline}
-                    uptimePercentage={data.uptimePercentage}
                     timeRange={timeRange}
                   />
                 </div>

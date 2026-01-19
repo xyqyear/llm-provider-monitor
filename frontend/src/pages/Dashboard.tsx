@@ -51,7 +51,7 @@ export function Dashboard() {
           aggregation,
           selectedProviderIds.length > 0 ? selectedProviderIds : undefined,
           selectedModelIds.length > 0 ? selectedModelIds : undefined,
-          selectedCategories.length > 0 ? selectedCategories : undefined
+          undefined  // Don't filter timeline by status category - only filter current status
         );
 
         // Convert array to Map for quick lookup
@@ -70,7 +70,7 @@ export function Dashboard() {
     if (providers.length > 0) {
       fetchTimeline();
     }
-  }, [providers, selectedProviderIds, selectedModelIds, selectedCategories, timeRange]);
+  }, [providers, selectedProviderIds, selectedModelIds, timeRange]);
 
   const handleTriggerProbe = async (providerId: number, modelId: number) => {
     if (!isAuthenticated) {
