@@ -274,7 +274,6 @@ export function StatusConfigAdmin() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态码</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">名称</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HTTP模式</th>
@@ -287,9 +286,6 @@ export function StatusConfigAdmin() {
             {configs.map(config => (
               <tr key={config.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {config.code}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {config.name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -311,7 +307,7 @@ export function StatusConfigAdmin() {
                   {config.priority}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                  {config.code !== -1 ? (
+                  {config.id !== -1 ? (
                     <>
                       <Button
                         onClick={() => handleEdit(config)}

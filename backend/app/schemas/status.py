@@ -36,7 +36,6 @@ class StatusConfigUpdate(BaseModel):
 
 class StatusConfigResponse(BaseModel):
     id: int
-    code: int
     name: str
     category: Literal["green", "yellow", "red"]
     http_code_pattern: str | None

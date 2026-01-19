@@ -72,10 +72,25 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                     rowSpan={provider.models.length}
                   >
-                    {provider.name}
-                    {!provider.enabled && (
-                      <span className="ml-2 text-xs text-gray-400">(已禁用)</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span>{provider.name}</span>
+                      {provider.website && (
+                        <a
+                          href={provider.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                          title="访问官网"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
+                      {!provider.enabled && (
+                        <span className="text-xs text-gray-400">(已禁用)</span>
+                      )}
+                    </div>
                   </td>
                 )}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -170,12 +185,27 @@ function StatusCard({
 }) {
   return (
     <div className={`bg-white rounded-lg shadow p-4 ${!provider.enabled ? 'opacity-50' : ''}`}>
-      <h3 className="text-lg font-medium text-gray-900 mb-3">
-        {provider.name}
-        {!provider.enabled && (
-          <span className="ml-2 text-xs text-gray-400">(已禁用)</span>
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-lg font-medium text-gray-900">
+          {provider.name}
+        </h3>
+        {provider.website && (
+          <a
+            href={provider.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800"
+            title="访问官网"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         )}
-      </h3>
+        {!provider.enabled && (
+          <span className="text-xs text-gray-400">(已禁用)</span>
+        )}
+      </div>
       <div className="space-y-3">
         {provider.models.map(model => {
           const key = `${provider.id}-${model.modelId}`;
@@ -202,10 +232,9 @@ function StatusCard({
                 </div>
                 {data && (
                   <div className="text-right">
-                    <p className={`text-sm font-medium ${
-                      data.uptimePercentage >= 95 ? 'text-green-600' :
-                      data.uptimePercentage >= 90 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
+                    <p className={`text-sm font-medium ${data.uptimePercentage >= 95 ? 'text-green-600' :
+                        data.uptimePercentage >= 90 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
                       {data.uptimePercentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-gray-500">Uptime</p>

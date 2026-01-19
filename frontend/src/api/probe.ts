@@ -51,7 +51,7 @@ export async function triggerProbe(
   providerId: number,
   modelId: number
 ): Promise<{
-  statusCode: number;
+  statusId: number;
   statusName: string;
   statusCategory: string;
   latencyMs: number | null;

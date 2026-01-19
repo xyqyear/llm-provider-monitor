@@ -74,7 +74,7 @@ export interface ProviderModelStatus {
   modelName: string;
   displayName: string;
   enabled: boolean;
-  statusCode: number | null;
+  statusId: number | null;
   statusName: string | null;
   statusCategory: StatusCategory | null;
   latencyMs: number | null;
@@ -85,6 +85,7 @@ export interface ProviderWithModels {
   id: number;
   name: string;
   baseUrl: string;
+  website: string | null;
   enabled: boolean;
   intervalSeconds: number | null;
   modelNameMapping: Record<string, string> | null;
@@ -96,6 +97,7 @@ export interface ProviderAdmin {
   name: string;
   baseUrl: string;
   authToken: string;
+  website: string | null;
   enabled: boolean;
   intervalSeconds: number | null;
   modelNameMapping: Record<string, string> | null;
@@ -114,6 +116,7 @@ export interface ProviderCreate {
   name: string;
   baseUrl: string;
   authToken: string;
+  website?: string | null;
   enabled?: boolean;
   intervalSeconds?: number | null;
   modelNameMapping?: Record<string, string> | null;
@@ -124,6 +127,7 @@ export interface ProviderUpdate {
   name?: string;
   baseUrl?: string;
   authToken?: string;
+  website?: string | null;
   enabled?: boolean;
   intervalSeconds?: number | null;
   modelNameMapping?: Record<string, string> | null;
@@ -131,7 +135,6 @@ export interface ProviderUpdate {
 
 export interface StatusConfig {
   id: number;
-  code: number;
   name: string;
   category: StatusCategory;
   httpCodePattern: string | null;
@@ -159,7 +162,7 @@ export interface ProbeHistory {
   id: number;
   providerId: number;
   modelId: number;
-  statusCode: number;
+  statusId: number;
   statusName: string;
   statusCategory: StatusCategory;
   latencyMs: number | null;

@@ -13,7 +13,7 @@ from ..schemas.common import PreviewMatch
 class MatchResult:
     """状态匹配结果"""
 
-    status_code: int
+    status_id: int
     matched: bool  # 是否匹配到规则
     category: str  # green/yellow/red
     name: str
@@ -94,7 +94,7 @@ class StatusService:
                 # Green category: always matched
                 if config.category == "green":
                     return MatchResult(
-                        status_code=config.code,
+                        status_id=config.id,
                         matched=True,
                         category=config.category.value,
                         name=config.name,
@@ -103,7 +103,7 @@ class StatusService:
                 # Non-green category with regex: matched
                 if config.response_regex:
                     return MatchResult(
-                        status_code=config.code,
+                        status_id=config.id,
                         matched=True,
                         category=config.category.value,
                         name=config.name,
@@ -111,7 +111,7 @@ class StatusService:
 
                 # Non-green category without regex: unmatched (for manual classification)
                 return MatchResult(
-                    status_code=config.code,
+                    status_id=config.id,
                     matched=False,
                     category=config.category.value,
                     name=config.name,
@@ -119,7 +119,7 @@ class StatusService:
 
         # No config hit - return unknown status
         return MatchResult(
-            status_code=-1,
+            status_id=-1,
             matched=False,
             category="yellow",
             name="未知",
@@ -149,10 +149,10 @@ class StatusService:
 
         return False
 
-    async def get_status_info(self, code: int) -> StatusInfo:
-        """Get status info by code."""
+    async def get_status_info(self, status_id: int) -> StatusInfo:
+        """Get status info by id."""
         result = await self.db.execute(
-            select(StatusConfig).where(StatusConfig.code == code)
+            select(StatusConfig).where(StatusConfig.id == status_id)
         )
         config = result.scalar_one_or_none()
 
@@ -187,13 +187,13 @@ class StatusService:
 
         return matched
 
-    async def apply_config_to_history(self, status_code: int) -> int:
+    async def apply_config_to_history(self, status_id: int) -> int:
         """Apply a new status config to unmatched historical records.
 
         Returns the number of records updated.
         """
         result = await self.db.execute(
-            select(StatusConfig).where(StatusConfig.code == status_code)
+            select(StatusConfig).where(StatusConfig.id == status_id)
         )
         config = result.scalar_one_or_none()
 
@@ -213,7 +213,7 @@ class StatusService:
             pattern = re.compile(config.response_regex)
             for record in records:
                 if record.message and pattern.search(record.message):
-                    record.status_code = status_code
+                    record.status_id = status_id
                     record.message = None  # Clear message to save space
                     updated_count += 1
         except re.error:

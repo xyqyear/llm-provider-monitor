@@ -112,7 +112,7 @@ class ProbeService:
         history = ProbeHistory(
             provider_id=provider_id,
             model_id=model_id,
-            status_code=match_result.status_code,
+            status_id=match_result.status_id,
             latency_ms=check_result.latency_ms,
             message=message,
             checked_at=datetime.utcnow(),

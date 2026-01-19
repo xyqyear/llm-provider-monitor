@@ -15,6 +15,7 @@ class ProviderCreate(BaseModel):
     name: str
     base_url: str
     auth_token: str
+    website: str | None = None
     enabled: bool = True
     interval_seconds: int | None = None
     model_name_mapping: dict[str, str] | None = (
@@ -27,6 +28,7 @@ class ProviderUpdate(BaseModel):
     name: str | None = None
     base_url: str | None = None
     auth_token: str | None = None
+    website: str | None = None
     enabled: bool | None = None
     interval_seconds: int | None = None
     model_name_mapping: dict[str, str] | None = None
@@ -46,6 +48,7 @@ class ProviderResponse(BaseModel):
     id: int
     name: str
     base_url: str
+    website: str | None
     enabled: bool
     interval_seconds: int | None
     model_name_mapping: dict[str, str] | None = None
@@ -65,7 +68,7 @@ class ProviderModelStatus(BaseModel):
     model_name: str
     display_name: str
     enabled: bool
-    status_code: int | None = None
+    status_id: int | None = None
     status_name: str | None = None
     status_category: Literal["green", "yellow", "red"] | None = None
     latency_ms: int | None = None
@@ -76,6 +79,7 @@ class ProviderWithModels(BaseModel):
     id: int
     name: str
     base_url: str
+    website: str | None
     enabled: bool
     interval_seconds: int | None
     model_name_mapping: dict[str, str] | None = None

@@ -146,7 +146,7 @@ async def insert_default_data():
         # Default status configs (sorted by priority descending)
         status_configs = [
             StatusConfig(
-                code=0,
+                id=1,
                 name="正常",
                 category="green",
                 http_code_pattern="200",
@@ -166,18 +166,18 @@ async def insert_default_data():
                 priority=100,
             ),
             StatusConfig(
-                name="请求错误",
+                name="4xx错误",
                 category="red",
                 http_code_pattern="4xx",
                 priority=50,
             ),
             StatusConfig(
-                name="服务器错误",
+                name="5xx错误",
                 category="red",
                 http_code_pattern="5xx",
                 priority=50,
             ),
-            StatusConfig(code=-1, name="未知", category="yellow", priority=-1),
+            StatusConfig(id=-1, name="未知", category="yellow", priority=-1),
         ]
         session.add_all(status_configs)
 

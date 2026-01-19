@@ -40,14 +40,7 @@ async def create_status_config(
     _: bool = Depends(verify_admin),
 ):
     """Create a new status config (admin only)."""
-    # Auto-generate code: find max code and add 1
-    result = await db.execute(
-        select(StatusConfig.code).order_by(StatusConfig.code.desc()).limit(1)
-    )
-    max_code = result.scalar_one_or_none()
-    new_code = (max_code or 0) + 1
-
-    new_config = StatusConfig(code=new_code, **config.model_dump())
+    new_config = StatusConfig(**config.model_dump())
     db.add(new_config)
     await db.commit()
     await db.refresh(new_config)
@@ -68,8 +61,8 @@ async def update_status_config(
     if not existing:
         raise HTTPException(status_code=404, detail="状态配置不存在")
 
-    # Protect the default "unknown" status config (code=-1)
-    if existing.code == -1:
+    # Protect the default "unknown" status config (id=-1)
+    if existing.id == -1:
         raise HTTPException(status_code=400, detail="无法修改默认的未知状态配置")
 
     update_data = config.model_dump(exclude_unset=True)
@@ -94,8 +87,8 @@ async def delete_status_config(
     if not config:
         raise HTTPException(status_code=404, detail="状态配置不存在")
 
-    # Protect the default "unknown" status config (code=-1)
-    if config.code == -1:
+    # Protect the default "unknown" status config (id=-1)
+    if config.id == -1:
         raise HTTPException(status_code=400, detail="无法删除默认的未知状态配置")
 
     await db.delete(config)
@@ -129,7 +122,7 @@ async def apply_config_to_history(
         raise HTTPException(status_code=404, detail="状态配置不存在")
 
     status_service = StatusService(db)
-    updated_count = await status_service.apply_config_to_history(config.code)
+    updated_count = await status_service.apply_config_to_history(config.id)
 
     return MessageWithCountResponse(
         message=f"已更新 {updated_count} 条记录", updated_count=updated_count

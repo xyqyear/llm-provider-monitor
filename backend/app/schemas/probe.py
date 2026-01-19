@@ -8,7 +8,7 @@ class ProbeHistoryResponse(BaseModel):
     id: int
     provider_id: int
     model_id: int
-    status_code: int
+    status_id: int
     status_name: str
     status_category: Literal["green", "yellow", "red"]
     latency_ms: int | None
@@ -39,7 +39,7 @@ class TimelinePoint(BaseModel):
 class CurrentStatus(BaseModel):
     provider_id: int
     model_id: int
-    status_code: int
+    status_id: int
     status_name: str
     status_category: Literal["green", "yellow", "red"]
     latency_ms: int | None
@@ -49,7 +49,7 @@ class CurrentStatus(BaseModel):
 class ProbeTriggerResponse(BaseModel):
     """Response from manually triggering a probe."""
 
-    status_code: int
+    status_id: int
     status_name: str
     status_category: str
     latency_ms: int | None

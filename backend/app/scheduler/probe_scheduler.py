@@ -138,7 +138,7 @@ class ProbeScheduler:
                     if result:
                         logger.info(
                             f"Probe completed: provider={provider_id}, "
-                            f"model={model_id}, status={result.status_code}, "
+                            f"model={model_id}, status={result.status_id}, "
                             f"latency={result.latency_ms}ms"
                         )
             except Exception as e:
@@ -164,8 +164,7 @@ class ProbeScheduler:
                     cleanup_service = CleanupService(session)
                     result = await cleanup_service.cleanup_old_data()
                     logger.info(
-                        f"Cleanup completed: {result['history_deleted']} history records, "
-                        f"{result['messages_deleted']} unmatched messages deleted"
+                        f"Cleanup completed: {result.history_deleted} history records deleted"
                     )
             except asyncio.CancelledError:
                 break

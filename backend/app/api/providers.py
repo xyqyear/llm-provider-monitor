@@ -59,7 +59,7 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
         for pm in provider.models:
             latest = await probe_service.get_latest_status(provider.id, pm.model_id)
             status_info = await status_service.get_status_info(
-                latest.status_code if latest else 0
+                latest.status_id if latest else 1
             )
 
             # Get model info
@@ -74,7 +74,7 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
                     model_name=model.name if model else "",
                     display_name=model.display_name if model else "",
                     enabled=pm.enabled,
-                    status_code=latest.status_code if latest else None,
+                    status_id=latest.status_id if latest else None,
                     status_name=status_info.name,
                     status_category=status_info.category.value,
                     latency_ms=latest.latency_ms if latest else None,
@@ -87,6 +87,7 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
                 id=provider.id,
                 name=provider.name,
                 base_url=provider.base_url,
+                website=provider.website,
                 enabled=provider.enabled,
                 interval_seconds=provider.interval_seconds,
                 model_name_mapping=parse_model_name_mapping(
@@ -117,6 +118,7 @@ async def get_providers_admin(
                 name=p.name,
                 base_url=p.base_url,
                 auth_token=p.auth_token,
+                website=p.website,
                 enabled=p.enabled,
                 interval_seconds=p.interval_seconds,
                 model_name_mapping=parse_model_name_mapping(p.model_name_mapping),
@@ -143,6 +145,7 @@ async def create_provider(
         name=provider.name,
         base_url=provider.base_url,
         auth_token=provider.auth_token,
+        website=provider.website,
         enabled=provider.enabled,
         interval_seconds=provider.interval_seconds,
         model_name_mapping=serialize_model_name_mapping(provider.model_name_mapping),
@@ -169,6 +172,7 @@ async def create_provider(
         id=new_provider.id,
         name=new_provider.name,
         base_url=new_provider.base_url,
+        website=new_provider.website,
         enabled=new_provider.enabled,
         interval_seconds=new_provider.interval_seconds,
         model_name_mapping=parse_model_name_mapping(new_provider.model_name_mapping),
@@ -209,6 +213,7 @@ async def update_provider(
         id=existing.id,
         name=existing.name,
         base_url=existing.base_url,
+        website=existing.website,
         enabled=existing.enabled,
         interval_seconds=existing.interval_seconds,
         model_name_mapping=parse_model_name_mapping(existing.model_name_mapping),

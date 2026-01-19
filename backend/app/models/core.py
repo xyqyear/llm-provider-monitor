@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+from .status import StatusConfig
 
 
 class RequestTemplate(Base):
@@ -46,6 +47,7 @@ class Provider(Base):
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     base_url: Mapped[str] = mapped_column(String, nullable=False)
     auth_token: Mapped[str] = mapped_column(String, nullable=False)
+    website: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Model name mapping: JSON string like {"cc-haiku": "claude-3-haiku-20240307"}
@@ -125,7 +127,9 @@ class ProbeHistory(Base):
     model_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False
     )
-    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    status_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("status_configs.id"), nullable=False
+    )
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     message: Mapped[str | None] = mapped_column(String, nullable=True)
     checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -140,3 +144,4 @@ class ProbeHistory(Base):
         "Provider", back_populates="probe_history"
     )
     model: Mapped["Model"] = relationship("Model", back_populates="probe_history")
+    status: Mapped[StatusConfig] = relationship("StatusConfig")

@@ -50,13 +50,13 @@ async def get_probe_history(
 
     items = []
     for record in history:
-        status_info = await status_service.get_status_info(record.status_code)
+        status_info = await status_service.get_status_info(record.status_id)
         items.append(
             ProbeHistoryResponse(
                 id=record.id,
                 provider_id=record.provider_id,
                 model_id=record.model_id,
-                status_code=record.status_code,
+                status_id=record.status_id,
                 status_name=status_info.name,
                 status_category=status_info.category.value,
                 latency_ms=record.latency_ms,
@@ -102,7 +102,7 @@ async def get_timeline(
     status_result = await db.execute(select(StatusConfig))
     status_configs_list = status_result.scalars().all()
     status_configs: dict[int, StatusInfo] = {
-        sc.code: StatusInfo(category=sc.category, name=sc.name)
+        sc.id: StatusInfo(category=sc.category, name=sc.name)
         for sc in status_configs_list
     }
     status_configs[-1] = StatusInfo(
@@ -114,9 +114,9 @@ async def get_timeline(
             TimelinePoint(
                 timestamp=r.checked_at,
                 status_category=status_configs.get(
-                    r.status_code, status_configs[-1]
+                    r.status_id, status_configs[-1]
                 ).category.value,
-                status_name=status_configs.get(r.status_code, status_configs[-1]).name,
+                status_name=status_configs.get(r.status_id, status_configs[-1]).name,
                 count=1,
                 avg_latency_ms=float(r.latency_ms) if r.latency_ms else None,
             )
@@ -143,7 +143,7 @@ async def get_timeline(
                 latencies=[],
             )
 
-        status_info = status_configs.get(record.status_code, status_configs[-1])
+        status_info = status_configs.get(record.status_id, status_configs[-1])
         category = status_info.category.value
 
         # Update counts
@@ -246,7 +246,7 @@ async def get_timeline_batch(
     status_result = await db.execute(select(StatusConfig))
     status_configs_list = status_result.scalars().all()
     status_configs: dict[int, StatusInfo] = {
-        sc.code: StatusInfo(category=sc.category, name=sc.name)
+        sc.id: StatusInfo(category=sc.category, name=sc.name)
         for sc in status_configs_list
     }
     status_configs[-1] = StatusInfo(
@@ -268,7 +268,7 @@ async def get_timeline_batch(
         if category_list:
             filtered_records = []
             for record in provider_records:
-                status_info = status_configs.get(record.status_code, status_configs[-1])
+                status_info = status_configs.get(record.status_id, status_configs[-1])
                 if status_info.category.value in category_list:
                     filtered_records.append(record)
             provider_records = filtered_records
@@ -282,10 +282,10 @@ async def get_timeline_batch(
                 TimelinePoint(
                     timestamp=r.checked_at,
                     status_category=status_configs.get(
-                        r.status_code, status_configs[-1]
+                        r.status_id, status_configs[-1]
                     ).category.value,
                     status_name=status_configs.get(
-                        r.status_code, status_configs[-1]
+                        r.status_id, status_configs[-1]
                     ).name,
                     count=1,
                     avg_latency_ms=float(r.latency_ms) if r.latency_ms else None,
@@ -312,7 +312,7 @@ async def get_timeline_batch(
                         latencies=[],
                     )
 
-                status_info = status_configs.get(record.status_code, status_configs[-1])
+                status_info = status_configs.get(record.status_id, status_configs[-1])
                 category = status_info.category.value
 
                 # Update counts
@@ -419,10 +419,10 @@ async def trigger_probe(
         raise HTTPException(status_code=400, detail="检测失败或供应商/模型未启用")
 
     status_service = StatusService(db)
-    status_info = await status_service.get_status_info(result.status_code)
+    status_info = await status_service.get_status_info(result.status_id)
 
     return ProbeTriggerResponse(
-        status_code=result.status_code,
+        status_id=result.status_id,
         status_name=status_info.name,
         status_category=status_info.category.value,
         latency_ms=result.latency_ms,

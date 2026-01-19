@@ -16,8 +16,7 @@ class StatusCategory(str, enum.Enum):
 class StatusConfig(Base):
     __tablename__ = "status_configs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    code: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     category: Mapped[StatusCategory] = mapped_column(
         Enum(StatusCategory, values_callable=lambda x: [e.value for e in x]),
