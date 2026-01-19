@@ -5,14 +5,15 @@ import { getProvidersStatus } from '../api/providers';
 import { triggerProbe, getTimelineBatch } from '../api/probe';
 import { useInterval } from '../hooks/useInterval';
 import { useAuth } from '../hooks/useAuth';
+import { useStatusCounts } from '../contexts/StatusContext';
 import { StatusTable } from '../components/StatusTable';
 import { DashboardFilters } from '../components/DashboardFilters';
-import { getStatusBgColor, getStatusTextColor } from '../utils';
 import Button from '../components/Button';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { setStatusCounts } = useStatusCounts();
   const [providers, setProviders] = useState<ProviderWithModels[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
@@ -127,24 +128,31 @@ export function Dashboard() {
     }),
   }));
 
-  // Calculate summary stats from filtered providers
+  // Calculate stats for header
   const stats = {
-    total: 0,
     green: 0,
-    yellow: 0,
     red: 0,
   };
 
   filteredProviders.forEach(p => {
     p.models.forEach(m => {
-      if (p.enabled && m.enabled) {
-        stats.total++;
-        if (m.statusCategory) {
-          stats[m.statusCategory]++;
+      if (p.enabled && m.enabled && m.statusCategory) {
+        if (m.statusCategory === 'green') {
+          stats.green++;
+        } else if (m.statusCategory === 'red') {
+          stats.red++;
         }
       }
     });
   });
+
+  // Update global status counts for header
+  useEffect(() => {
+    setStatusCounts({
+      green: stats.green,
+      red: stats.red,
+    });
+  }, [stats.green, stats.red, setStatusCounts]);
 
   if (loading) {
     return (
@@ -156,14 +164,6 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Summary - Smaller */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="总计" value={stats.total} />
-        <SummaryCard label="正常" value={stats.green} category="green" />
-        <SummaryCard label="警告" value={stats.yellow} category="yellow" />
-        <SummaryCard label="异常" value={stats.red} category="red" />
-      </div>
-
       {/* Filters */}
       <DashboardFilters
         providers={providers}
@@ -202,26 +202,6 @@ export function Dashboard() {
           onViewDetail={handleViewDetail}
         />
       )}
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  category,
-}: {
-  label: string;
-  value: number;
-  category?: 'green' | 'yellow' | 'red';
-}) {
-  const bgColor = category ? getStatusBgColor(category) : 'bg-gray-100';
-  const textColor = category ? getStatusTextColor(category) : 'text-gray-700';
-
-  return (
-    <div className={`${bgColor} rounded-lg p-2`}>
-      <p className="text-xs text-gray-600">{label}</p>
-      <p className={`text-xl font-bold ${textColor}`}>{value}</p>
     </div>
   );
 }
