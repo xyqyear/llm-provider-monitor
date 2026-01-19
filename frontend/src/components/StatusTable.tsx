@@ -37,28 +37,28 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               供应商
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               模型
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               状态
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               延迟
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               检测时间
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               Uptime
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-full">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-full">
               Timeline
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
               操作
             </th>
           </tr>
@@ -69,7 +69,7 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
               <tr key={`${provider.id}-${model.modelId}`} className={!provider.enabled || !model.enabled ? 'opacity-50' : ''}>
                 {idx === 0 && (
                   <td
-                    className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                     rowSpan={provider.models.length}
                   >
                     <div className="flex items-center gap-2">
@@ -93,13 +93,13 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     </div>
                   </td>
                 )}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {model.displayName}
                   {!model.enabled && (
                     <span className="ml-2 text-xs text-gray-400">(已禁用)</span>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap">
                   <span className="flex items-center">
                     <span
                       className={`w-3 h-3 rounded-full mr-2 ${getStatusColor(model.statusCategory)}`}
@@ -109,13 +109,13 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     </span>
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {formatLatency(model.latencyMs)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {model.checkedAt ? formatDate(model.checkedAt) : '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <td className="px-3 py-4 whitespace-nowrap text-sm">
                   {(() => {
                     const key = `${provider.id}-${model.modelId}`;
                     const data = timelineData?.get(key);
@@ -126,7 +126,7 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     return <span className={`font-medium ${color}`}>{uptime.toFixed(1)}%</span>;
                   })()}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-4">
                   {(() => {
                     const key = `${provider.id}-${model.modelId}`;
                     const data = timelineData?.get(key);
@@ -140,7 +140,7 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     );
                   })()}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                <td className="px-3 py-4 whitespace-nowrap text-sm space-x-2">
                   {onTriggerProbe && (
                     <Button
                       onClick={() => onTriggerProbe(provider.id, model.modelId)}
