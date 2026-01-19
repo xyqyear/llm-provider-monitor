@@ -247,7 +247,7 @@ export function ProvidersAdmin() {
                 模型名映射
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                如果此供应商使用的模型名与配置中的标准模型名不同，可以在这里配置映射关系
+                如果此供应商使用的模型名与配置中的标准模型名不同，可以在这里配置映射关系。格式：标准模型名 → 供应商模型名
               </p>
 
               {/* Existing mappings */}
@@ -273,25 +273,25 @@ export function ProvidersAdmin() {
 
               {/* Add new mapping */}
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <select
                   value={newMappingKey}
                   onChange={e => setNewMappingKey(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                  placeholder="自定义模型名 (如: cc-haiku)"
-                />
-                <select
-                  value={newMappingValue}
-                  onChange={e => setNewMappingValue(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                 >
                   <option value="">选择标准模型名</option>
                   {models.map(model => (
                     <option key={model.id} value={model.modelName}>
-                      {model.displayName} ({model.modelName})
+                      {model.modelName}
                     </option>
                   ))}
                 </select>
+                <input
+                  type="text"
+                  value={newMappingValue}
+                  onChange={e => setNewMappingValue(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  placeholder="供应商模型名 (如: gemini-claude-opus-4-5)"
+                />
                 <button
                   type="button"
                   onClick={handleAddMapping}
