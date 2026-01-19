@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TimelinePoint, TimeRange } from '../types';
-import { getStatusBgColor } from '../utils';
 
 interface MiniTimelineProps {
   timeline: TimelinePoint[];
@@ -54,18 +53,41 @@ export function MiniTimeline({ timeline, timeRange }: MiniTimelineProps) {
   }
 
   // Helper to get background color for timeline blocks
-  const getBlockColor = (point: TimelinePoint | null): string => {
+  const getBlockColor = (point: TimelinePoint | null): string | { backgroundColor: string } => {
     if (!point) return 'bg-gray-300';
 
     if (isAggregated) {
-      // For aggregated data, use uptime percentage to determine color
+      // For aggregated data, use uptime percentage to calculate color
+      // 0% = red (220,0,0), 50% = yellow (220,220,0), 100% = green (0,220,0)
       const uptime = point.uptimePercentage ?? 0;
-      if (uptime >= 95) return 'bg-green-100';
-      if (uptime >= 90) return 'bg-yellow-100';
-      return 'bg-red-100';
+
+      let red: number;
+      let green: number;
+
+      if (uptime <= 50) {
+        // Interpolate from red to yellow (0% to 50%)
+        red = 220;
+        green = Math.round(220 * (uptime / 50));
+      } else {
+        // Interpolate from yellow to green (50% to 100%)
+        // Use power curve for steep change near 100%, then flatten
+        const normalized = (uptime - 50) / 50; // 0 at 50%, 1 at 100%
+        const curve = Math.pow(normalized, 6); // Power of 6 for steep initial change
+        red = Math.round(220 * (1 - curve));
+        green = 220;
+      }
+
+      return { backgroundColor: `rgb(${red}, ${green}, 0)` };
     } else {
-      // For non-aggregated data, use status category
-      return getStatusBgColor(point.statusCategory);
+      // For non-aggregated data, use darker colors
+      if (point.statusCategory === 'green') {
+        return { backgroundColor: 'rgb(0, 220, 0)' };
+      } else if (point.statusCategory === 'red') {
+        return { backgroundColor: 'rgb(220, 0, 0)' };
+      } else {
+        // Yellow status - use a middle color
+        return { backgroundColor: 'rgb(220, 220, 0)' };
+      }
     }
   };
 
@@ -96,11 +118,18 @@ export function MiniTimeline({ timeline, timeRange }: MiniTimelineProps) {
             const bgColor = getBlockColor(point);
             const isPlaceholder = point === null;
 
+            // Handle both string (Tailwind class) and object (inline style) return values
+            const className = typeof bgColor === 'string'
+              ? `flex-1 h-2 ${bgColor} rounded-sm ${isPlaceholder ? '' : 'cursor-pointer transition-transform hover:scale-150'}`
+              : `flex-1 h-2 rounded-sm ${isPlaceholder ? '' : 'cursor-pointer transition-transform hover:scale-150'}`;
+            const style = typeof bgColor === 'object' ? bgColor : undefined;
+
             return (
               <div
                 key={index}
                 ref={(el) => (blockRefs.current[index] = el)}
-                className={`flex-1 h-2 ${bgColor} rounded-sm ${isPlaceholder ? '' : 'cursor-pointer transition-transform hover:scale-150'}`}
+                className={className}
+                style={style}
                 onMouseEnter={() => handleMouseEnter(index)}
                 onMouseLeave={handleMouseLeave}
               />
