@@ -256,6 +256,9 @@ async def configure_provider_models(
     for pm in result.scalars().all():
         await db.delete(pm)
 
+    # Flush the deletes before adding new records to avoid unique constraint violation
+    await db.flush()
+
     # Add new ones
     for model_config in models:
         pm = ProviderModel(

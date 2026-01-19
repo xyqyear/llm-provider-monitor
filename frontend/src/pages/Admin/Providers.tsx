@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ProviderAdmin, Model } from '../../types';
-import { getProvidersAdmin, createProvider, updateProvider, deleteProvider } from '../../api/providers';
+import { getProvidersAdmin, getProvidersStatus, createProvider, updateProvider, deleteProvider, configureProviderModels } from '../../api/providers';
 import { getModels } from '../../api/models';
 
 export function ProvidersAdmin() {
@@ -15,9 +15,11 @@ export function ProvidersAdmin() {
     authToken: '',
     enabled: true,
     intervalSeconds: '',
-    modelNameMapping: '' as string,  // JSON string for editing
+    modelNameMapping: {} as Record<string, string>,
   });
   const [selectedModels, setSelectedModels] = useState<number[]>([]);
+  const [newMappingKey, setNewMappingKey] = useState('');
+  const [newMappingValue, setNewMappingValue] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,26 +46,41 @@ export function ProvidersAdmin() {
       authToken: '',
       enabled: true,
       intervalSeconds: '',
-      modelNameMapping: '',
+      modelNameMapping: {},
     });
     setSelectedModels([]);
+    setNewMappingKey('');
+    setNewMappingValue('');
     setEditingId(null);
     setShowForm(false);
     setError('');
   };
 
-  const handleEdit = (provider: ProviderAdmin) => {
+  const handleEdit = async (provider: ProviderAdmin) => {
     setFormData({
       name: provider.name,
       baseUrl: provider.baseUrl,
       authToken: provider.authToken,
       enabled: provider.enabled,
       intervalSeconds: provider.intervalSeconds?.toString() || '',
-      modelNameMapping: provider.modelNameMapping
-        ? JSON.stringify(provider.modelNameMapping, null, 2)
-        : '',
+      modelNameMapping: provider.modelNameMapping || {},
     });
     setEditingId(provider.id);
+
+    // Load current enabled models for this provider
+    try {
+      const providersWithModels = await getProvidersStatus();
+      const currentProvider = providersWithModels.find(p => p.id === provider.id);
+      if (currentProvider) {
+        const enabledModelIds = currentProvider.models
+          .filter(m => m.enabled)
+          .map(m => m.modelId);
+        setSelectedModels(enabledModelIds);
+      }
+    } catch (err) {
+      console.error('Failed to load provider models:', err);
+    }
+
     setShowForm(true);
   };
 
@@ -71,16 +88,10 @@ export function ProvidersAdmin() {
     e.preventDefault();
     setError('');
 
-    // Parse model name mapping
-    let modelNameMapping: Record<string, string> | null = null;
-    if (formData.modelNameMapping.trim()) {
-      try {
-        modelNameMapping = JSON.parse(formData.modelNameMapping);
-      } catch {
-        setError('模型名映射格式错误，必须是有效的JSON');
-        return;
-      }
-    }
+    // Use model name mapping directly (no JSON parsing needed)
+    const modelNameMapping = Object.keys(formData.modelNameMapping).length > 0
+      ? formData.modelNameMapping
+      : null;
 
     try {
       const data = {
@@ -94,6 +105,11 @@ export function ProvidersAdmin() {
 
       if (editingId) {
         await updateProvider(editingId, data);
+        // Update model configuration for existing provider
+        await configureProviderModels(
+          editingId,
+          selectedModels.map(id => ({ modelId: id, enabled: true }))
+        );
       } else {
         const newProvider = await createProvider({
           ...data,
@@ -118,6 +134,31 @@ export function ProvidersAdmin() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     }
+  };
+
+  const handleAddMapping = () => {
+    if (!newMappingKey.trim() || !newMappingValue.trim()) {
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      modelNameMapping: {
+        ...formData.modelNameMapping,
+        [newMappingKey.trim()]: newMappingValue.trim(),
+      },
+    });
+    setNewMappingKey('');
+    setNewMappingValue('');
+  };
+
+  const handleRemoveMapping = (key: string) => {
+    const newMapping = { ...formData.modelNameMapping };
+    delete newMapping[key];
+    setFormData({
+      ...formData,
+      modelNameMapping: newMapping,
+    });
   };
 
   if (loading) {
@@ -202,21 +243,62 @@ export function ProvidersAdmin() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                模型名映射 (JSON)
+                模型名映射
               </label>
-              <textarea
-                value={formData.modelNameMapping}
-                onChange={e => setFormData({ ...formData, modelNameMapping: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                rows={4}
-                placeholder={`{
-  "cc-haiku": "claude-3-haiku-20240307",
-  "cc-sonnet": "claude-3-sonnet-20240229"
-}`}
-              />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mb-2">
                 如果此供应商使用的模型名与配置中的标准模型名不同，可以在这里配置映射关系
               </p>
+
+              {/* Existing mappings */}
+              {Object.keys(formData.modelNameMapping).length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {Object.entries(formData.modelNameMapping).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-2 bg-gray-50 p-2 rounded-md">
+                      <span className="text-sm text-gray-700 font-mono flex-1">
+                        {key} → {value}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMapping(key)}
+                        className="text-red-600 hover:text-red-900 text-sm"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new mapping */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMappingKey}
+                  onChange={e => setNewMappingKey(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  placeholder="自定义模型名 (如: cc-haiku)"
+                />
+                <select
+                  value={newMappingValue}
+                  onChange={e => setNewMappingValue(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                >
+                  <option value="">选择标准模型名</option>
+                  {models.map(model => (
+                    <option key={model.id} value={model.modelName}>
+                      {model.displayName} ({model.modelName})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddMapping}
+                  disabled={!newMappingKey.trim() || !newMappingValue.trim()}
+                  className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div>
@@ -231,32 +313,30 @@ export function ProvidersAdmin() {
               </label>
             </div>
 
-            {!editingId && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  启用的模型
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {models.map(model => (
-                    <label key={model.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedModels.includes(model.id)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedModels([...selectedModels, model.id]);
-                          } else {
-                            setSelectedModels(selectedModels.filter(id => id !== model.id));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{model.displayName}</span>
-                    </label>
-                  ))}
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                启用的模型
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {models.map(model => (
+                  <label key={model.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedModels.includes(model.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedModels([...selectedModels, model.id]);
+                        } else {
+                          setSelectedModels(selectedModels.filter(id => id !== model.id));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{model.displayName}</span>
+                  </label>
+                ))}
               </div>
-            )}
+            </div>
 
             <div className="flex space-x-4">
               <button
