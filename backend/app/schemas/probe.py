@@ -70,3 +70,18 @@ class TimelineAggregation(BaseModel):
     counts: CategoryCounts
     status_names: CategoryStatusNames
     latencies: list[int] = Field(default_factory=list)
+
+
+class TimelineBatchItem(BaseModel):
+    """Timeline data for a single provider-model combination."""
+
+    provider_id: int
+    model_id: int
+    timeline: list[TimelinePoint]
+    uptime_percentage: float
+
+
+class TimelineBatchResponse(BaseModel):
+    """Batch response containing timeline data for multiple provider-model combinations."""
+
+    items: list[TimelineBatchItem]

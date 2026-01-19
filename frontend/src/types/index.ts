@@ -175,6 +175,19 @@ export interface TimelinePoint {
   avgLatencyMs: number | null;
 }
 
+export interface TimelineBatchItem {
+  providerId: number;
+  modelId: number;
+  timeline: TimelinePoint[];
+  uptimePercentage: number;
+}
+
+export interface TimelineBatchResponse {
+  items: TimelineBatchItem[];
+}
+
+export type TimeRange = '90min' | '24h' | '7d' | '30d';
+
 export interface GlobalConfig {
   checkIntervalSeconds: number;
   checkTimeoutSeconds: number;

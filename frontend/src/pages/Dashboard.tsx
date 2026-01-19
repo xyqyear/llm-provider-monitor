@@ -1,11 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ProviderWithModels } from '../types';
+import type { ProviderWithModels, StatusCategory, TimeRange, TimelineBatchItem } from '../types';
 import { getProvidersStatus } from '../api/providers';
-import { triggerProbe } from '../api/probe';
-import { usePolling } from '../hooks/usePolling';
+import { triggerProbe, getTimelineBatch } from '../api/probe';
+import { useInterval } from '../hooks/useInterval';
 import { useAuth } from '../hooks/useAuth';
 import { StatusTable } from '../components/StatusTable';
+import { DashboardFilters } from '../components/DashboardFilters';
 import { getStatusBgColor, getStatusTextColor } from '../utils';
 import Button from '../components/Button';
 
@@ -14,18 +15,62 @@ export function Dashboard() {
   const { isAuthenticated } = useAuth();
   const [providers, setProviders] = useState<ProviderWithModels[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
+  const [selectedModelIds, setSelectedModelIds] = useState<number[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<StatusCategory[]>([]);
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [timelineData, setTimelineData] = useState<Map<string, TimelineBatchItem>>(new Map());
 
   const fetchData = useCallback(async () => {
     try {
       const data = await getProvidersStatus();
       setProviders(data || []);
-      return data || [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  usePolling(fetchData, (data) => setProviders(data || []), 30000);
+  useInterval(fetchData, 30000);
+
+  // Fetch timeline data when filters or time range change
+  useEffect(() => {
+    const fetchTimeline = async () => {
+      try {
+        // Map time range to hours and aggregation
+        const timeRangeMap: Record<TimeRange, { hours: number; aggregation: 'none' | 'hour' | '6hour' | 'day' }> = {
+          '90min': { hours: 1.5, aggregation: 'none' },
+          '24h': { hours: 24, aggregation: 'hour' },
+          '7d': { hours: 168, aggregation: '6hour' },
+          '30d': { hours: 720, aggregation: 'day' },
+        };
+
+        const { hours, aggregation } = timeRangeMap[timeRange];
+
+        const response = await getTimelineBatch(
+          hours,
+          aggregation,
+          selectedProviderIds.length > 0 ? selectedProviderIds : undefined,
+          selectedModelIds.length > 0 ? selectedModelIds : undefined,
+          selectedCategories.length > 0 ? selectedCategories : undefined
+        );
+
+        // Convert array to Map for quick lookup
+        const dataMap = new Map<string, TimelineBatchItem>();
+        response.items.forEach(item => {
+          const key = `${item.providerId}-${item.modelId}`;
+          dataMap.set(key, item);
+        });
+
+        setTimelineData(dataMap);
+      } catch (error) {
+        console.error('Failed to fetch timeline data:', error);
+      }
+    };
+
+    if (providers.length > 0) {
+      fetchTimeline();
+    }
+  }, [providers, selectedProviderIds, selectedModelIds, selectedCategories, timeRange]);
 
   const handleTriggerProbe = async (providerId: number, modelId: number) => {
     if (!isAuthenticated) {
@@ -45,7 +90,44 @@ export function Dashboard() {
     navigate(`/detail?provider=${providerId}&model=${modelId}`);
   };
 
-  // Calculate summary stats
+  // Apply filters to providers
+  const filteredProviders = providers.filter(provider => {
+    // Filter by provider
+    if (selectedProviderIds.length > 0 && !selectedProviderIds.includes(provider.id)) {
+      return false;
+    }
+
+    // Filter models
+    const filteredModels = provider.models.filter(model => {
+      // Filter by model
+      if (selectedModelIds.length > 0 && !selectedModelIds.includes(model.modelId)) {
+        return false;
+      }
+
+      // Filter by status category
+      if (selectedCategories.length > 0 && model.statusCategory && !selectedCategories.includes(model.statusCategory)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Only include provider if it has at least one matching model
+    return filteredModels.length > 0;
+  }).map(provider => ({
+    ...provider,
+    models: provider.models.filter(model => {
+      if (selectedModelIds.length > 0 && !selectedModelIds.includes(model.modelId)) {
+        return false;
+      }
+      if (selectedCategories.length > 0 && model.statusCategory && !selectedCategories.includes(model.statusCategory)) {
+        return false;
+      }
+      return true;
+    }),
+  }));
+
+  // Calculate summary stats from filtered providers
   const stats = {
     total: 0,
     green: 0,
@@ -53,8 +135,8 @@ export function Dashboard() {
     red: 0,
   };
 
-  (providers || []).forEach(p => {
-    (p.models || []).forEach(m => {
+  filteredProviders.forEach(p => {
+    p.models.forEach(m => {
       if (p.enabled && m.enabled) {
         stats.total++;
         if (m.statusCategory) {
@@ -73,30 +155,48 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      {/* Summary - Smaller */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryCard label="总计" value={stats.total} />
         <SummaryCard label="正常" value={stats.green} category="green" />
         <SummaryCard label="警告" value={stats.yellow} category="yellow" />
         <SummaryCard label="异常" value={stats.red} category="red" />
       </div>
 
+      {/* Filters */}
+      <DashboardFilters
+        providers={providers}
+        selectedProviderIds={selectedProviderIds}
+        selectedModelIds={selectedModelIds}
+        selectedCategories={selectedCategories}
+        timeRange={timeRange}
+        onProviderChange={setSelectedProviderIds}
+        onModelChange={setSelectedModelIds}
+        onCategoryChange={setSelectedCategories}
+        onTimeRangeChange={setTimeRange}
+      />
+
       {/* Status Table */}
-      {providers.length === 0 ? (
+      {filteredProviders.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500 mb-4">暂无供应商配置</p>
-          <Button
-            onClick={() => navigate('/admin/providers')}
-            variant="primary"
-            size="md"
-          >
-            添加供应商
-          </Button>
+          <p className="text-gray-500 mb-4">
+            {providers.length === 0 ? '暂无供应商配置' : '没有匹配的结果'}
+          </p>
+          {providers.length === 0 && (
+            <Button
+              onClick={() => navigate('/admin/providers')}
+              variant="primary"
+              size="md"
+            >
+              添加供应商
+            </Button>
+          )}
         </div>
       ) : (
         <StatusTable
-          providers={providers}
+          providers={filteredProviders}
+          timelineData={timelineData}
           onTriggerProbe={handleTriggerProbe}
           onViewDetail={handleViewDetail}
         />
@@ -118,9 +218,9 @@ function SummaryCard({
   const textColor = category ? getStatusTextColor(category) : 'text-gray-700';
 
   return (
-    <div className={`${bgColor} rounded-lg p-4`}>
-      <p className="text-sm text-gray-600">{label}</p>
-      <p className={`text-2xl font-bold ${textColor}`}>{value}</p>
+    <div className={`${bgColor} rounded-lg p-2`}>
+      <p className="text-xs text-gray-600">{label}</p>
+      <p className={`text-xl font-bold ${textColor}`}>{value}</p>
     </div>
   );
 }
