@@ -197,6 +197,7 @@ export function Dashboard() {
         <StatusTable
           providers={filteredProviders}
           timelineData={timelineData}
+          timeRange={timeRange}
           onTriggerProbe={handleTriggerProbe}
           onViewDetail={handleViewDetail}
         />

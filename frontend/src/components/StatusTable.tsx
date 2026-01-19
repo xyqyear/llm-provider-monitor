@@ -1,4 +1,4 @@
-import type { ProviderWithModels, TimelineBatchItem } from '../types';
+import type { ProviderWithModels, TimelineBatchItem, TimeRange } from '../types';
 import { getStatusColor, getStatusTextColor, formatLatency, formatDate } from '../utils';
 import { useResponsive } from '../hooks/useResponsive';
 import Button from './Button';
@@ -7,11 +7,12 @@ import { MiniTimeline } from './MiniTimeline';
 interface Props {
   providers: ProviderWithModels[];
   timelineData?: Map<string, TimelineBatchItem>;
+  timeRange: TimeRange;
   onTriggerProbe?: (providerId: number, modelId: number) => void;
   onViewDetail?: (providerId: number, modelId: number) => void;
 }
 
-export function StatusTable({ providers, timelineData, onTriggerProbe, onViewDetail }: Props) {
+export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe, onViewDetail }: Props) {
   const { isMobile } = useResponsive();
 
   if (isMobile) {
@@ -22,6 +23,7 @@ export function StatusTable({ providers, timelineData, onTriggerProbe, onViewDet
             key={provider.id}
             provider={provider}
             timelineData={timelineData}
+            timeRange={timeRange}
             onTriggerProbe={onTriggerProbe}
             onViewDetail={onViewDetail}
           />
@@ -119,6 +121,7 @@ export function StatusTable({ providers, timelineData, onTriggerProbe, onViewDet
                       <MiniTimeline
                         timeline={data.timeline}
                         uptimePercentage={data.uptimePercentage}
+                        timeRange={timeRange}
                       />
                     );
                   })()}
@@ -156,11 +159,13 @@ export function StatusTable({ providers, timelineData, onTriggerProbe, onViewDet
 function StatusCard({
   provider,
   timelineData,
+  timeRange,
   onTriggerProbe,
   onViewDetail,
 }: {
   provider: ProviderWithModels;
   timelineData?: Map<string, TimelineBatchItem>;
+  timeRange: TimeRange;
   onTriggerProbe?: (providerId: number, modelId: number) => void;
   onViewDetail?: (providerId: number, modelId: number) => void;
 }) {
@@ -213,6 +218,7 @@ function StatusCard({
                   <MiniTimeline
                     timeline={data.timeline}
                     uptimePercentage={data.uptimePercentage}
+                    timeRange={timeRange}
                   />
                 </div>
               )}
