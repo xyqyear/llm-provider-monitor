@@ -10,6 +10,7 @@ import {
   getUnmatchedMessages,
 } from '../../api/status';
 import Pagination from '../../components/Pagination';
+import Button from '../../components/Button';
 
 export function StatusConfigAdmin() {
   const [configs, setConfigs] = useState<StatusConfig[]>([]);
@@ -312,24 +313,27 @@ export function StatusConfigAdmin() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   {config.code !== -1 ? (
                     <>
-                      <button
+                      <Button
                         onClick={() => handleEdit(config)}
-                        className="text-blue-600 hover:text-blue-900"
+                        variant="primary"
+                        size="sm"
                       >
                         编辑
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => handleApplyToHistory(config.id)}
-                        className="text-green-600 hover:text-green-900"
+                        variant="success"
+                        size="sm"
                       >
                         应用
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => handleDelete(config.id)}
-                        className="text-red-600 hover:text-red-900"
+                        variant="danger"
+                        size="sm"
                       >
                         删除
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <span className="text-gray-400">系统保留</span>

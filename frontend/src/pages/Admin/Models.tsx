@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Model, RequestTemplate } from '../../types';
 import { getModels, createModel, updateModel, deleteModel } from '../../api/models';
 import { getTemplates } from '../../api/templates';
+import Button from '../../components/Button';
 
 export function ModelsAdmin() {
   const [models, setModels] = useState<Model[]>([]);
@@ -323,18 +324,20 @@ export function ModelsAdmin() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                  <button
+                  <Button
                     onClick={() => handleEdit(model)}
-                    className="text-blue-600 hover:text-blue-900"
+                    variant="primary"
+                    size="sm"
                   >
                     编辑
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleDelete(model.id)}
-                    className="text-red-600 hover:text-red-900"
+                    variant="danger"
+                    size="sm"
                   >
                     删除
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}

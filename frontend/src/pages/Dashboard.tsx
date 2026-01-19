@@ -7,6 +7,7 @@ import { usePolling } from '../hooks/usePolling';
 import { useAuth } from '../hooks/useAuth';
 import { StatusTable } from '../components/StatusTable';
 import { getStatusBgColor, getStatusTextColor } from '../utils';
+import Button from '../components/Button';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -85,12 +86,13 @@ export function Dashboard() {
       {providers.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-gray-500 mb-4">暂无供应商配置</p>
-          <button
+          <Button
             onClick={() => navigate('/admin/providers')}
-            className="text-blue-600 hover:text-blue-800"
+            variant="primary"
+            size="md"
           >
             添加供应商
-          </button>
+          </Button>
         </div>
       ) : (
         <StatusTable

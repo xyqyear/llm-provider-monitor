@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { ProviderAdmin, Model } from '../../types';
 import { getProvidersAdmin, getProvidersStatus, createProvider, updateProvider, deleteProvider, configureProviderModels } from '../../api/providers';
 import { getModels } from '../../api/models';
+import Button from '../../components/Button';
 
 export function ProvidersAdmin() {
   const [providers, setProviders] = useState<ProviderAdmin[]>([]);
@@ -257,13 +258,14 @@ export function ProvidersAdmin() {
                       <span className="text-sm text-gray-700 font-mono flex-1">
                         {key} → {value}
                       </span>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => handleRemoveMapping(key)}
-                        className="text-red-600 hover:text-red-900 text-sm"
+                        variant="danger"
+                        size="sm"
                       >
                         删除
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -392,18 +394,20 @@ export function ProvidersAdmin() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                  <button
+                  <Button
                     onClick={() => handleEdit(provider)}
-                    className="text-blue-600 hover:text-blue-900"
+                    variant="primary"
+                    size="sm"
                   >
                     编辑
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleDelete(provider.id)}
-                    className="text-red-600 hover:text-red-900"
+                    variant="danger"
+                    size="sm"
                   >
                     删除
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}

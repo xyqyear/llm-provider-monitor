@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { RequestTemplate, HttpMethod } from '../../types';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../../api/templates';
+import Button from '../../components/Button';
 
 export function TemplatesAdmin() {
   const [templates, setTemplates] = useState<RequestTemplate[]>([]);
@@ -258,24 +259,26 @@ content-type: application/json`}
                 </p>
               </div>
               <div className="flex items-center space-x-4">
-                <button
+                <Button
                   onClick={e => {
                     e.stopPropagation();
                     handleEdit(template);
                   }}
-                  className="text-blue-600 hover:text-blue-900"
+                  variant="primary"
+                  size="sm"
                 >
                   编辑
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={e => {
                     e.stopPropagation();
                     handleDelete(template.id);
                   }}
-                  className="text-red-600 hover:text-red-900"
+                  variant="danger"
+                  size="sm"
                 >
                   删除
-                </button>
+                </Button>
                 <span className="text-gray-400">
                   {expandedId === template.id ? '▲' : '▼'}
                 </span>

@@ -1,6 +1,7 @@
 import type { ProviderWithModels } from '../types';
 import { getStatusColor, getStatusTextColor, formatLatency, formatDate } from '../utils';
 import { useResponsive } from '../hooks/useResponsive';
+import Button from './Button';
 
 interface Props {
   providers: ProviderWithModels[];
@@ -90,21 +91,23 @@ export function StatusTable({ providers, onTriggerProbe, onViewDetail }: Props) 
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   {onTriggerProbe && (
-                    <button
+                    <Button
                       onClick={() => onTriggerProbe(provider.id, model.modelId)}
-                      className="text-blue-600 hover:text-blue-900"
+                      variant="primary"
+                      size="sm"
                       disabled={!provider.enabled || !model.enabled}
                     >
                       检测
-                    </button>
+                    </Button>
                   )}
                   {onViewDetail && (
-                    <button
+                    <Button
                       onClick={() => onViewDetail(provider.id, model.modelId)}
-                      className="text-gray-600 hover:text-gray-900"
+                      variant="secondary"
+                      size="sm"
                     >
                       详情
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -154,21 +157,23 @@ function StatusCard({
             </div>
             <div className="flex space-x-2">
               {onTriggerProbe && (
-                <button
+                <Button
                   onClick={() => onTriggerProbe(provider.id, model.modelId)}
-                  className="text-xs text-blue-600"
+                  variant="primary"
+                  size="sm"
                   disabled={!provider.enabled || !model.enabled}
                 >
                   检测
-                </button>
+                </Button>
               )}
               {onViewDetail && (
-                <button
+                <Button
                   onClick={() => onViewDetail(provider.id, model.modelId)}
-                  className="text-xs text-gray-600"
+                  variant="secondary"
+                  size="sm"
                 >
                   详情
-                </button>
+                </Button>
               )}
             </div>
           </div>
