@@ -1,0 +1,197 @@
+export type StatusCategory = 'green' | 'yellow' | 'red';
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
+export interface RequestTemplate {
+  id: number;
+  name: string;
+  description: string | null;
+  method: HttpMethod;
+  url: string;
+  headers: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RequestTemplateCreate {
+  name: string;
+  description?: string | null;
+  method?: HttpMethod;
+  url?: string;
+  headers: string;
+  body: string;
+}
+
+export interface RequestTemplateUpdate {
+  name?: string;
+  description?: string | null;
+  method?: HttpMethod;
+  url?: string;
+  headers?: string;
+  body?: string;
+}
+
+export interface Model {
+  id: number;
+  name: string;
+  modelName: string;
+  displayName: string;
+  defaultPrompt: string | null;
+  defaultRegex: string | null;
+  systemPrompt: string | null;
+  templateId: number | null;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface ModelCreate {
+  name: string;
+  modelName: string;
+  displayName: string;
+  defaultPrompt?: string | null;
+  defaultRegex?: string | null;
+  systemPrompt?: string | null;
+  templateId?: number | null;
+  enabled?: boolean;
+  sortOrder?: number;
+}
+
+export interface ModelUpdate {
+  name?: string;
+  modelName?: string;
+  displayName?: string;
+  defaultPrompt?: string | null;
+  defaultRegex?: string | null;
+  systemPrompt?: string | null;
+  templateId?: number | null;
+  enabled?: boolean;
+  sortOrder?: number;
+}
+
+export interface ProviderModelStatus {
+  modelId: number;
+  modelName: string;
+  displayName: string;
+  enabled: boolean;
+  statusCode: number | null;
+  statusName: string | null;
+  statusCategory: StatusCategory | null;
+  latencyMs: number | null;
+  checkedAt: string | null;
+}
+
+export interface ProviderWithModels {
+  id: number;
+  name: string;
+  baseUrl: string;
+  enabled: boolean;
+  intervalSeconds: number | null;
+  modelNameMapping: Record<string, string> | null;
+  models: ProviderModelStatus[];
+}
+
+export interface ProviderAdmin {
+  id: number;
+  name: string;
+  baseUrl: string;
+  authToken: string;
+  enabled: boolean;
+  intervalSeconds: number | null;
+  modelNameMapping: Record<string, string> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderModelConfig {
+  modelId: number;
+  enabled: boolean;
+  customPrompt?: string | null;
+  customRegex?: string | null;
+}
+
+export interface ProviderCreate {
+  name: string;
+  baseUrl: string;
+  authToken: string;
+  enabled?: boolean;
+  intervalSeconds?: number | null;
+  modelNameMapping?: Record<string, string> | null;
+  models?: ProviderModelConfig[];
+}
+
+export interface ProviderUpdate {
+  name?: string;
+  baseUrl?: string;
+  authToken?: string;
+  enabled?: boolean;
+  intervalSeconds?: number | null;
+  modelNameMapping?: Record<string, string> | null;
+}
+
+export interface StatusConfig {
+  id: number;
+  code: number;
+  name: string;
+  category: StatusCategory;
+  httpCodePattern: string | null;
+  responseRegex: string | null;
+  priority: number;
+  createdAt: string;
+}
+
+export interface StatusConfigCreate {
+  name: string;
+  category: StatusCategory;
+  httpCodePattern?: string | null;
+  responseRegex?: string | null;
+  priority?: number;
+}
+
+export interface UnmatchedMessage {
+  message: string;
+  occurrenceCount: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface ProbeHistory {
+  id: number;
+  providerId: number;
+  modelId: number;
+  statusCode: number;
+  statusName: string;
+  statusCategory: StatusCategory;
+  latencyMs: number | null;
+  message: string | null;
+  checkedAt: string;
+}
+
+export interface TimelinePoint {
+  timestamp: string;
+  statusCategory: StatusCategory;
+  statusName: string;
+  count: number;
+  avgLatencyMs: number | null;
+}
+
+export interface GlobalConfig {
+  checkIntervalSeconds: number;
+  checkTimeoutSeconds: number;
+  maxParallelChecks: number;
+  dataRetentionDays: number;
+  hasAdminPassword: boolean;
+}
+
+export interface GlobalConfigUpdate {
+  checkIntervalSeconds?: number;
+  checkTimeoutSeconds?: number;
+  maxParallelChecks?: number;
+  dataRetentionDays?: number;
+  adminPassword?: string;
+}
+
+export interface PreviewMatch {
+  message: string;
+  count: number;
+}

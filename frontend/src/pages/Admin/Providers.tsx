@@ -1,0 +1,342 @@
+import { useState, useEffect } from 'react';
+import type { ProviderAdmin, Model } from '../../types';
+import { getProvidersAdmin, createProvider, updateProvider, deleteProvider } from '../../api/providers';
+import { getModels } from '../../api/models';
+
+export function ProvidersAdmin() {
+  const [providers, setProviders] = useState<ProviderAdmin[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    baseUrl: '',
+    authToken: '',
+    enabled: true,
+    intervalSeconds: '',
+    modelNameMapping: '' as string,  // JSON string for editing
+  });
+  const [selectedModels, setSelectedModels] = useState<number[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [providersData, modelsData] = await Promise.all([
+        getProvidersAdmin(),
+        getModels(),
+      ]);
+      setProviders(providersData);
+      setModels(modelsData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      baseUrl: '',
+      authToken: '',
+      enabled: true,
+      intervalSeconds: '',
+      modelNameMapping: '',
+    });
+    setSelectedModels([]);
+    setEditingId(null);
+    setShowForm(false);
+    setError('');
+  };
+
+  const handleEdit = (provider: ProviderAdmin) => {
+    setFormData({
+      name: provider.name,
+      baseUrl: provider.baseUrl,
+      authToken: provider.authToken,
+      enabled: provider.enabled,
+      intervalSeconds: provider.intervalSeconds?.toString() || '',
+      modelNameMapping: provider.modelNameMapping
+        ? JSON.stringify(provider.modelNameMapping, null, 2)
+        : '',
+    });
+    setEditingId(provider.id);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Parse model name mapping
+    let modelNameMapping: Record<string, string> | null = null;
+    if (formData.modelNameMapping.trim()) {
+      try {
+        modelNameMapping = JSON.parse(formData.modelNameMapping);
+      } catch {
+        setError('模型名映射格式错误，必须是有效的JSON');
+        return;
+      }
+    }
+
+    try {
+      const data = {
+        name: formData.name,
+        baseUrl: formData.baseUrl,
+        authToken: formData.authToken,
+        enabled: formData.enabled,
+        intervalSeconds: formData.intervalSeconds ? parseInt(formData.intervalSeconds) : null,
+        modelNameMapping,
+      };
+
+      if (editingId) {
+        await updateProvider(editingId, data);
+      } else {
+        const newProvider = await createProvider({
+          ...data,
+          models: selectedModels.map(id => ({ modelId: id, enabled: true })),
+        });
+        setEditingId(newProvider.id);
+      }
+
+      await loadData();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('确定要删除这个供应商吗？')) return;
+
+    try {
+      await deleteProvider(id);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">加载中...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">供应商管理</h2>
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+        >
+          添加供应商
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
+      )}
+
+      {/* Form */}
+      {showForm && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium mb-4">
+            {editingId ? '编辑供应商' : '添加供应商'}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  名称 *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  API地址 *
+                </label>
+                <input
+                  type="url"
+                  value={formData.baseUrl}
+                  onChange={e => setFormData({ ...formData, baseUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://api.example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  认证令牌 *
+                </label>
+                <input
+                  type="password"
+                  value={formData.authToken}
+                  onChange={e => setFormData({ ...formData, authToken: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  检测间隔 (秒)
+                </label>
+                <input
+                  type="number"
+                  value={formData.intervalSeconds}
+                  onChange={e => setFormData({ ...formData, intervalSeconds: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="留空使用全局配置"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                模型名映射 (JSON)
+              </label>
+              <textarea
+                value={formData.modelNameMapping}
+                onChange={e => setFormData({ ...formData, modelNameMapping: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                rows={4}
+                placeholder={`{
+  "cc-haiku": "claude-3-haiku-20240307",
+  "cc-sonnet": "claude-3-sonnet-20240229"
+}`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                如果此供应商使用的模型名与配置中的标准模型名不同，可以在这里配置映射关系
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.enabled}
+                  onChange={e => setFormData({ ...formData, enabled: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">启用</span>
+              </label>
+            </div>
+
+            {!editingId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  启用的模型
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {models.map(model => (
+                    <label key={model.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.includes(model.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedModels([...selectedModels, model.id]);
+                          } else {
+                            setSelectedModels(selectedModels.filter(id => id !== model.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{model.displayName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-4">
+              <button
+                type="submit"
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                {editingId ? '保存' : '创建'}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+              >
+                取消
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* List */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">名称</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">API地址</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">映射</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {providers.map(provider => (
+              <tr key={provider.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {provider.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {provider.baseUrl}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {provider.modelNameMapping ? (
+                    <span className="text-blue-600" title={JSON.stringify(provider.modelNameMapping)}>
+                      已配置
+                    </span>
+                  ) : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs rounded-full ${provider.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    {provider.enabled ? '已启用' : '已禁用'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                  <button
+                    onClick={() => handleEdit(provider)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleDelete(provider.id)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    删除
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {providers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  暂无供应商
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
