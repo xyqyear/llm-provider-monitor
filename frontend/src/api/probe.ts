@@ -1,14 +1,14 @@
-import type { ProbeHistory, TimelinePoint } from '../types';
+import type { PaginatedResponse, ProbeHistory, TimelinePoint } from '../types';
 import { apiGet, apiPost } from './index';
 
 export async function getProbeHistory(
   providerId: number,
   modelId: number,
-  limit = 100,
-  offset = 0
-): Promise<ProbeHistory[]> {
-  return apiGet<ProbeHistory[]>(
-    `/probe/history/${providerId}/${modelId}?limit=${limit}&offset=${offset}`
+  page = 1,
+  pageSize = 50
+): Promise<PaginatedResponse<ProbeHistory>> {
+  return apiGet<PaginatedResponse<ProbeHistory>>(
+    `/probe/history/${providerId}/${modelId}?page=${page}&page_size=${pageSize}`
   );
 }
 

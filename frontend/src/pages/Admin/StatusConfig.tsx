@@ -9,6 +9,7 @@ import {
   applyConfigToHistory,
   getUnmatchedMessages,
 } from '../../api/status';
+import Pagination from '../../components/Pagination';
 
 export function StatusConfigAdmin() {
   const [configs, setConfigs] = useState<StatusConfig[]>([]);
@@ -16,6 +17,10 @@ export function StatusConfigAdmin() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
+  const pageSize = 50;
   const [formData, setFormData] = useState<StatusConfigCreate>({
     name: '',
     category: 'yellow',
@@ -28,16 +33,18 @@ export function StatusConfigAdmin() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]);
 
   const loadData = async () => {
     try {
       const [configsData, messagesData] = await Promise.all([
         getStatusConfigs(),
-        getUnmatchedMessages(),
+        getUnmatchedMessages(currentPage, pageSize),
       ]);
       setConfigs(configsData);
-      setUnmatchedMessages(messagesData);
+      setUnmatchedMessages(messagesData.items);
+      setTotal(messagesData.total);
+      setTotalPages(messagesData.totalPages);
     } finally {
       setLoading(false);
     }
@@ -111,6 +118,10 @@ export function StatusConfigAdmin() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '应用失败');
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const handleDelete = async (id: number) => {
@@ -282,8 +293,8 @@ export function StatusConfigAdmin() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs rounded-full ${config.category === 'green' ? 'bg-green-100 text-green-800' :
-                      config.category === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
+                    config.category === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
                     }`}>
                     {config.category === 'green' ? '正常' :
                       config.category === 'yellow' ? '警告' : '异常'}
@@ -331,21 +342,30 @@ export function StatusConfigAdmin() {
       </div>
 
       {/* Unmatched Messages */}
-      {unmatchedMessages.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">未匹配消息 ({unmatchedMessages.length})</h3>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {unmatchedMessages.map((msg, idx) => (
-              <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-start">
-                  <p className="text-sm text-gray-700 break-all">{msg.message}</p>
-                  <span className="text-xs text-gray-400 ml-2 whitespace-nowrap">
-                    {msg.occurrenceCount}次
-                  </span>
+      {total > 0 && (
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-medium mb-4">未匹配消息 (共 {total} 条)</h3>
+            <div className="space-y-2">
+              {unmatchedMessages.map((msg, idx) => (
+                <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm text-gray-700 break-all">{msg.message}</p>
+                    <span className="text-xs text-gray-400 ml-2 whitespace-nowrap">
+                      {msg.occurrenceCount}次
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            pageSize={pageSize}
+            total={total}
+          />
         </div>
       )}
     </div>

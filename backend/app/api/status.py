@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..models import ProbeHistory
 from ..models.status import StatusConfig
-from ..schemas.common import MessageResponse, MessageWithCountResponse
+from ..schemas.common import (
+    MessageResponse,
+    MessageWithCountResponse,
+    PaginatedResponse,
+)
 from ..schemas.status import (
     PreviewMatchRequest,
     PreviewMatchResponse,
@@ -132,13 +136,26 @@ async def apply_config_to_history(
     )
 
 
-@router.get("/unmatched", response_model=list[UnmatchedMessageResponse])
+@router.get("/unmatched", response_model=PaginatedResponse[UnmatchedMessageResponse])
 async def get_unmatched_messages(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_admin),
 ):
     """Get unmatched messages from ProbeHistory (admin only)."""
-    # Get distinct messages with their counts
+    # Calculate offset
+    offset = (page - 1) * page_size
+
+    # Get total count of distinct messages
+    count_result = await db.execute(
+        select(func.count(func.distinct(ProbeHistory.message))).where(
+            ProbeHistory.message.isnot(None)
+        )
+    )
+    total = count_result.scalar_one()
+
+    # Get distinct messages with their counts (paginated)
     result = await db.execute(
         select(
             ProbeHistory.message,
@@ -149,11 +166,13 @@ async def get_unmatched_messages(
         .where(ProbeHistory.message.isnot(None))
         .group_by(ProbeHistory.message)
         .order_by(func.count(ProbeHistory.id).desc())
+        .limit(page_size)
+        .offset(offset)
     )
 
-    messages = []
+    items = []
     for row in result:
-        messages.append(
+        items.append(
             UnmatchedMessageResponse(
                 message=row.message,
                 occurrence_count=row.occurrence_count,
@@ -162,4 +181,12 @@ async def get_unmatched_messages(
             )
         )
 
-    return messages
+    total_pages = (total + page_size - 1) // page_size
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import ProbeHistory, StatusCategory
 from ..models.status import StatusConfig
+from ..schemas.common import PaginatedResponse
 from ..schemas.probe import (
     CategoryCounts,
     CategoryStatusNames,
@@ -24,24 +25,31 @@ router = APIRouter()
 
 
 @router.get(
-    "/history/{provider_id}/{model_id}", response_model=list[ProbeHistoryResponse]
+    "/history/{provider_id}/{model_id}",
+    response_model=PaginatedResponse[ProbeHistoryResponse],
 )
 async def get_probe_history(
     provider_id: int,
     model_id: int,
-    limit: int = Query(100, le=500),
-    offset: int = Query(0, ge=0),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
     """Get probe history for a provider-model combination (public)."""
     probe_service = ProbeService(db)
     status_service = StatusService(db)
-    history = await probe_service.get_history(provider_id, model_id, limit, offset)
 
-    response = []
+    # Calculate offset
+    offset = (page - 1) * page_size
+
+    # Get total count and history
+    total = await probe_service.get_history_count(provider_id, model_id)
+    history = await probe_service.get_history(provider_id, model_id, page_size, offset)
+
+    items = []
     for record in history:
         status_info = await status_service.get_status_info(record.status_code)
-        response.append(
+        items.append(
             ProbeHistoryResponse(
                 id=record.id,
                 provider_id=record.provider_id,
@@ -55,7 +63,15 @@ async def get_probe_history(
             )
         )
 
-    return response
+    total_pages = (total + page_size - 1) // page_size
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.get("/timeline/{provider_id}/{model_id}", response_model=list[TimelinePoint])

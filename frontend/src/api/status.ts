@@ -1,4 +1,5 @@
 import type {
+  PaginatedResponse,
   PreviewMatch,
   StatusConfig,
   StatusConfigCreate,
@@ -35,6 +36,11 @@ export async function applyConfigToHistory(
   return apiPost(`/status/configs/${configId}/apply`);
 }
 
-export async function getUnmatchedMessages(): Promise<UnmatchedMessage[]> {
-  return apiGet<UnmatchedMessage[]>('/status/unmatched');
+export async function getUnmatchedMessages(
+  page = 1,
+  pageSize = 50
+): Promise<PaginatedResponse<UnmatchedMessage>> {
+  return apiGet<PaginatedResponse<UnmatchedMessage>>(
+    `/status/unmatched?page=${page}&page_size=${pageSize}`
+  );
 }

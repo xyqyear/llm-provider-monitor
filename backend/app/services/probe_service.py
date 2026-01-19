@@ -158,6 +158,22 @@ class ProbeService:
         )
         return list(result.scalars().all())
 
+    async def get_history_count(
+        self,
+        provider_id: int,
+        model_id: int,
+    ) -> int:
+        """Get total count of probe history for a provider-model combination."""
+        from sqlalchemy import func
+
+        result = await self.db.execute(
+            select(func.count(ProbeHistory.id)).where(
+                ProbeHistory.provider_id == provider_id,
+                ProbeHistory.model_id == model_id,
+            )
+        )
+        return result.scalar_one()
+
     async def get_all_enabled_tasks(self) -> list[tuple[int, int]]:
         """Get all enabled provider-model combinations."""
         result = await self.db.execute(

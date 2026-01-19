@@ -5,6 +5,7 @@ import { getProvidersStatus } from '../api/providers';
 import { getProbeHistory, getTimeline } from '../api/probe';
 import { Timeline } from '../components/Timeline';
 import { HistoryList } from '../components/HistoryList';
+import Pagination from '../components/Pagination';
 
 export function Detail() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +13,10 @@ export function Detail() {
   const [history, setHistory] = useState<ProbeHistory[]>([]);
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
+  const pageSize = 50;
 
   const selectedProvider = searchParams.get('provider');
   const selectedModel = searchParams.get('model');
@@ -24,22 +29,25 @@ export function Detail() {
     if (selectedProvider && selectedModel) {
       setLoading(true);
       Promise.all([
-        getProbeHistory(parseInt(selectedProvider), parseInt(selectedModel)),
+        getProbeHistory(parseInt(selectedProvider), parseInt(selectedModel), currentPage, pageSize),
         getTimeline(parseInt(selectedProvider), parseInt(selectedModel), 24, 'none'),
       ])
         .then(([historyData, timelineData]) => {
-          setHistory(historyData);
+          setHistory(historyData.items);
+          setTotal(historyData.total);
+          setTotalPages(historyData.totalPages);
           setTimeline(timelineData);
         })
         .finally(() => setLoading(false));
     }
-  }, [selectedProvider, selectedModel]);
+  }, [selectedProvider, selectedModel, currentPage]);
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const providerId = e.target.value;
     setSearchParams(providerId ? { provider: providerId } : {});
     setHistory([]);
     setTimeline([]);
+    setCurrentPage(1);
   };
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -49,6 +57,11 @@ export function Detail() {
     } else if (selectedProvider) {
       setSearchParams({ provider: selectedProvider });
     }
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const currentProvider = providers.find(p => p.id === parseInt(selectedProvider || ''));
@@ -111,9 +124,18 @@ export function Detail() {
             </div>
 
             {/* History List */}
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">历史记录</h3>
-              <HistoryList history={history} />
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">历史记录</h3>
+                <HistoryList history={history} />
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                total={total}
+              />
             </div>
           </>
         )
