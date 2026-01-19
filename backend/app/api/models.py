@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..models import Model
+from ..schemas.common import MessageResponse as CommonMessageResponse
 from ..schemas.model import ModelCreate, ModelResponse, ModelUpdate
 from .auth import verify_admin
 
@@ -59,7 +60,7 @@ async def update_model(
     return existing
 
 
-@router.delete("/{model_id}")
+@router.delete("/{model_id}", response_model=CommonMessageResponse)
 async def delete_model(
     model_id: int,
     db: AsyncSession = Depends(get_db),
@@ -74,4 +75,4 @@ async def delete_model(
     await db.delete(model)
     await db.commit()
 
-    return {"message": "已删除"}
+    return CommonMessageResponse(message="已删除")

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ProbeHistory, StatusCategory
 from ..models.status import StatusConfig
+from ..schemas.common import PreviewMatch
 
 
 @dataclass
@@ -159,7 +160,7 @@ class StatusService:
             return StatusInfo(category=config.category, name=config.name)
         return StatusInfo(category=StatusCategory.YELLOW, name="未知")
 
-    async def preview_matches(self, regex: str) -> list[dict]:
+    async def preview_matches(self, regex: str) -> list[PreviewMatch]:
         """Preview which unmatched messages would match a regex."""
         # Get unmatched messages directly from ProbeHistory
         result = await self.db.execute(
@@ -180,12 +181,7 @@ class StatusService:
                     )
                     count = len(count_result.scalars().all())
 
-                    matched.append(
-                        {
-                            "message": msg,
-                            "count": count,
-                        }
-                    )
+                    matched.append(PreviewMatch(message=msg, count=count))
         except re.error:
             pass
 

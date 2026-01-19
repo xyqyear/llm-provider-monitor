@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import ProbeHistory
 from ..models.status import StatusConfig
+from ..schemas.common import MessageResponse, MessageWithCountResponse
 from ..schemas.status import (
     PreviewMatchRequest,
     PreviewMatchResponse,
@@ -77,7 +78,7 @@ async def update_status_config(
     return existing
 
 
-@router.delete("/configs/{config_id}")
+@router.delete("/configs/{config_id}", response_model=MessageResponse)
 async def delete_status_config(
     config_id: int,
     db: AsyncSession = Depends(get_db),
@@ -96,7 +97,7 @@ async def delete_status_config(
     await db.delete(config)
     await db.commit()
 
-    return {"message": "已删除"}
+    return MessageResponse(message="已删除")
 
 
 @router.post("/configs/preview", response_model=list[PreviewMatchResponse])
@@ -108,10 +109,10 @@ async def preview_regex_matches(
     """Preview which unmatched messages would match a regex (admin only)."""
     status_service = StatusService(db)
     matches = await status_service.preview_matches(request.regex)
-    return [PreviewMatchResponse(**m) for m in matches]
+    return [PreviewMatchResponse(message=m.message, count=m.count) for m in matches]
 
 
-@router.post("/configs/{config_id}/apply")
+@router.post("/configs/{config_id}/apply", response_model=MessageWithCountResponse)
 async def apply_config_to_history(
     config_id: int,
     db: AsyncSession = Depends(get_db),
@@ -126,7 +127,9 @@ async def apply_config_to_history(
     status_service = StatusService(db)
     updated_count = await status_service.apply_config_to_history(config.code)
 
-    return {"message": f"已更新 {updated_count} 条记录", "updated_count": updated_count}
+    return MessageWithCountResponse(
+        message=f"已更新 {updated_count} 条记录", updated_count=updated_count
+    )
 
 
 @router.get("/unmatched", response_model=list[UnmatchedMessageResponse])

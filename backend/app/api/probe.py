@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import ProbeHistory, StatusCategory
 from ..models.status import StatusConfig
-from ..schemas.probe import ProbeHistoryResponse, TimelinePoint
+from ..schemas.probe import (
+    CategoryCounts,
+    CategoryStatusNames,
+    ProbeHistoryResponse,
+    ProbeTriggerResponse,
+    TimelineAggregation,
+    TimelinePoint,
+)
 from ..services.probe_service import ProbeService
 from ..services.status_service import StatusInfo, StatusService
 from .auth import verify_admin
@@ -99,7 +106,7 @@ async def get_timeline(
         ]
 
     # Aggregate by hour or day
-    aggregated: dict[str, dict] = {}
+    aggregated: dict[str, TimelineAggregation] = {}
     for record in records:
         if aggregation == "hour":
             key = record.checked_at.strftime("%Y-%m-%d %H:00:00")
@@ -107,36 +114,57 @@ async def get_timeline(
             key = record.checked_at.strftime("%Y-%m-%d 00:00:00")
 
         if key not in aggregated:
-            aggregated[key] = {
-                "timestamp": datetime.strptime(key, "%Y-%m-%d %H:%M:%S"),
-                "counts": {"green": 0, "yellow": 0, "red": 0},
-                "status_names": {"green": [], "yellow": [], "red": []},
-                "latencies": [],
-            }
+            aggregated[key] = TimelineAggregation(
+                timestamp=datetime.strptime(key, "%Y-%m-%d %H:%M:%S"),
+                counts=CategoryCounts(),
+                status_names=CategoryStatusNames(),
+                latencies=[],
+            )
 
         status_info = status_configs.get(record.status_code, status_configs[-1])
         category = status_info.category.value
-        aggregated[key]["counts"][category] += 1
-        aggregated[key]["status_names"][category].append(status_info.name)
+
+        # Update counts
+        if category == "green":
+            aggregated[key].counts.green += 1
+        elif category == "yellow":
+            aggregated[key].counts.yellow += 1
+        elif category == "red":
+            aggregated[key].counts.red += 1
+
+        # Update status names
+        if category == "green":
+            aggregated[key].status_names.green.append(status_info.name)
+        elif category == "yellow":
+            aggregated[key].status_names.yellow.append(status_info.name)
+        elif category == "red":
+            aggregated[key].status_names.red.append(status_info.name)
+
         if record.latency_ms:
-            aggregated[key]["latencies"].append(record.latency_ms)
+            aggregated[key].latencies.append(record.latency_ms)
 
     # Determine dominant category and calculate average latency
     response = []
     for key in sorted(aggregated.keys()):
         data = aggregated[key]
-        counts = data["counts"]
+        counts = data.counts
 
         # Priority: red > yellow > green
-        if counts["red"] > 0:
+        if counts.red > 0:
             dominant_category = "red"
-        elif counts["yellow"] > 0:
+        elif counts.yellow > 0:
             dominant_category = "yellow"
         else:
             dominant_category = "green"
 
         # Get the most common status name for the dominant category
-        status_names_list = data["status_names"][dominant_category]
+        if dominant_category == "red":
+            status_names_list = data.status_names.red
+        elif dominant_category == "yellow":
+            status_names_list = data.status_names.yellow
+        else:
+            status_names_list = data.status_names.green
+
         if status_names_list:
             # Use the most common status name
             status_name = max(set(status_names_list), key=status_names_list.count)
@@ -144,17 +172,17 @@ async def get_timeline(
             status_name = "未知"
 
         avg_latency = (
-            sum(data["latencies"]) / len(data["latencies"])
-            if data["latencies"]
-            else None
+            sum(data.latencies) / len(data.latencies) if data.latencies else None
         )
+
+        total_count = counts.green + counts.yellow + counts.red
 
         response.append(
             TimelinePoint(
-                timestamp=data["timestamp"],
+                timestamp=data.timestamp,
                 status_category=dominant_category,
                 status_name=status_name,
-                count=sum(counts.values()),
+                count=total_count,
                 avg_latency_ms=avg_latency,
             )
         )
@@ -162,7 +190,7 @@ async def get_timeline(
     return response
 
 
-@router.post("/trigger/{provider_id}/{model_id}")
+@router.post("/trigger/{provider_id}/{model_id}", response_model=ProbeTriggerResponse)
 async def trigger_probe(
     provider_id: int,
     model_id: int,
@@ -179,10 +207,10 @@ async def trigger_probe(
     status_service = StatusService(db)
     status_info = await status_service.get_status_info(result.status_code)
 
-    return {
-        "status_code": result.status_code,
-        "status_name": status_info.name,
-        "status_category": status_info.category,
-        "latency_ms": result.latency_ms,
-        "message": result.message,
-    }
+    return ProbeTriggerResponse(
+        status_code=result.status_code,
+        status_name=status_info.name,
+        status_category=status_info.category.value,
+        latency_ms=result.latency_ms,
+        message=result.message,
+    )

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models.config import GlobalConfig
 from ..scheduler.probe_scheduler import scheduler
+from ..schemas.common import MessageResponse, PasswordVerificationResponse
 from ..schemas.config import GlobalConfigResponse, GlobalConfigUpdate
 from .auth import verify_admin
 
@@ -26,7 +27,7 @@ async def get_config(db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.put("")
+@router.put("", response_model=MessageResponse)
 async def update_config(
     config: GlobalConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -51,7 +52,7 @@ async def update_config(
     if "check_interval_seconds" in update_data or "max_parallel_checks" in update_data:
         await scheduler.refresh_tasks()
 
-    return {"message": "已更新"}
+    return MessageResponse(message="已更新")
 
 
 async def _update_config_value(db: AsyncSession, key: str, value: str):
@@ -65,7 +66,7 @@ async def _update_config_value(db: AsyncSession, key: str, value: str):
         db.add(GlobalConfig(key=key, value=value))
 
 
-@router.post("/auth")
+@router.post("/auth", response_model=PasswordVerificationResponse)
 async def verify_password(
     x_admin_password: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -77,10 +78,10 @@ async def verify_password(
     config = result.scalar_one_or_none()
 
     if not config or not config.value:
-        return {"valid": True, "password_set": False}
+        return PasswordVerificationResponse(valid=True, password_set=False)
 
     if not x_admin_password:
-        return {"valid": False, "password_set": True}
+        return PasswordVerificationResponse(valid=False, password_set=True)
 
     valid = x_admin_password == config.value
-    return {"valid": valid, "password_set": True}
+    return PasswordVerificationResponse(valid=valid, password_set=True)

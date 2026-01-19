@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ProbeHistory
 from ..models.config import GlobalConfig
+from ..schemas.common import CleanupResult
 
 
 class CleanupService:
@@ -20,10 +21,10 @@ class CleanupService:
         config = result.scalar_one_or_none()
         return int(config.value) if config else 30
 
-    async def cleanup_old_data(self) -> dict:
+    async def cleanup_old_data(self) -> CleanupResult:
         """Remove data older than the retention period.
 
-        Returns a dict with counts of deleted records.
+        Returns counts of deleted records.
         """
         retention_days = await self.get_retention_days()
         cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
@@ -37,6 +38,4 @@ class CleanupService:
 
         await self.db.commit()
 
-        return {
-            "history_deleted": history_deleted,
-        }
+        return CleanupResult(history_deleted=history_deleted)

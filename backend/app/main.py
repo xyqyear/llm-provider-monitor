@@ -10,6 +10,7 @@ from .api import api_router
 from .config import settings
 from .database import init_db
 from .scheduler.probe_scheduler import scheduler
+from .schemas.common import HealthCheckResponse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,6 +58,6 @@ if frontend_dist.exists():
     )
 
 
-@app.get("/api/health")
+@app.get("/api/health", response_model=HealthCheckResponse)
 async def health_check():
-    return {"status": "ok"}
+    return HealthCheckResponse(status="ok")

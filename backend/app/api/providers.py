@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from ..database import get_db
 from ..models import Model, Provider, ProviderModel
 from ..scheduler.probe_scheduler import scheduler
+from ..schemas.common import MessageResponse
 from ..schemas.provider import (
     ProviderAdminResponse,
     ProviderCreate,
@@ -216,7 +217,7 @@ async def update_provider(
     )
 
 
-@router.delete("/{provider_id}")
+@router.delete("/{provider_id}", response_model=MessageResponse)
 async def delete_provider(
     provider_id: int,
     db: AsyncSession = Depends(get_db),
@@ -232,10 +233,10 @@ async def delete_provider(
     await db.commit()
     await scheduler.refresh_tasks()
 
-    return {"message": "已删除"}
+    return MessageResponse(message="已删除")
 
 
-@router.post("/{provider_id}/models")
+@router.post("/{provider_id}/models", response_model=MessageResponse)
 async def configure_provider_models(
     provider_id: int,
     models: list[ProviderModelConfig],
@@ -269,4 +270,4 @@ async def configure_provider_models(
     await db.commit()
     await scheduler.refresh_tasks()
 
-    return {"message": "已更新"}
+    return MessageResponse(message="已更新")
