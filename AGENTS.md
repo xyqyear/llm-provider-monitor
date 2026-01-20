@@ -16,9 +16,7 @@ uv run uvicorn app.main:app --reload  # Alternate dev server
 cd frontend
 pnpm install                    # Install frontend deps
 pnpm run dev                    # Vite dev server (localhost:5173)
-pnpm run build                  # Typecheck + production build
-pnpm run lint                   # ESLint checks
-pnpm run preview                # Preview production build
+pnpm run build                  # Typecheck + production build (always run after making changes)
 ```
 
 ## Coding Style & Naming Conventions
