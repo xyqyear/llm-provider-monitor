@@ -8,6 +8,7 @@ interface Props {
 export function AdminAuth({ onSuccess }: Props) {
   const { login, passwordRequired } = useAuth();
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export function AdminAuth({ onSuccess }: Props) {
     setLoading(true);
     setError('');
 
-    const success = await login(password);
+    const success = await login(password, remember);
     setLoading(false);
 
     if (success) {
@@ -48,6 +49,15 @@ export function AdminAuth({ onSuccess }: Props) {
               autoFocus
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 mb-4">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={remember}
+              onChange={e => setRemember(e.target.checked)}
+            />
+            Remember me
+          </label>
           {error && (
             <p className="text-red-500 text-sm mb-4">{error}</p>
           )}

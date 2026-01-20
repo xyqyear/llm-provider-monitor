@@ -3,8 +3,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { AdminAuth } from '../../components/AdminAuth';
 
 export function AdminLayout() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
   const location = useLocation();
+
+  if (isInitializing) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <AdminAuth />;

@@ -34,6 +34,8 @@ export function toCamelCase<T>(obj: unknown): T {
 }
 
 let adminPassword: string | null = null;
+const ADMIN_PASSWORD_STORAGE_KEY = 'adminPassword';
+const AUTH_INVALID_EVENT = 'admin-auth-invalid';
 
 export function setAdminPassword(password: string | null) {
   adminPassword = password;
@@ -41,6 +43,29 @@ export function setAdminPassword(password: string | null) {
 
 export function getAdminPassword(): string | null {
   return adminPassword;
+}
+
+export function getStoredAdminPassword(): string | null {
+  return localStorage.getItem(ADMIN_PASSWORD_STORAGE_KEY);
+}
+
+export function setStoredAdminPassword(password: string) {
+  localStorage.setItem(ADMIN_PASSWORD_STORAGE_KEY, password);
+}
+
+export function clearStoredAdminPassword() {
+  localStorage.removeItem(ADMIN_PASSWORD_STORAGE_KEY);
+}
+
+export function onAdminAuthInvalid(callback: () => void) {
+  window.addEventListener(AUTH_INVALID_EVENT, callback);
+  return () => window.removeEventListener(AUTH_INVALID_EVENT, callback);
+}
+
+function invalidateAdminAuth() {
+  adminPassword = null;
+  clearStoredAdminPassword();
+  window.dispatchEvent(new Event(AUTH_INVALID_EVENT));
 }
 
 export async function apiFetch<T>(
@@ -60,6 +85,10 @@ export async function apiFetch<T>(
     ...options,
     headers,
   });
+
+  if (response.status === 401 && adminPassword) {
+    invalidateAdminAuth();
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
