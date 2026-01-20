@@ -2,9 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from .api import api_router
 from .config import settings
@@ -50,14 +51,28 @@ app.add_middleware(
 # API routes
 app.include_router(api_router, prefix="/api")
 
-# Serve static files if frontend build exists
-frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
-if frontend_dist.exists():
-    app.mount(
-        "/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend"
-    )
-
 
 @app.get("/api/health", response_model=HealthCheckResponse)
 async def health_check():
     return HealthCheckResponse(status="ok")
+
+
+# Serve frontend build and SPA fallback
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+templates = Jinja2Templates(directory=str(frontend_dist))
+
+app.mount(
+    "/static",
+    StaticFiles(directory=str(frontend_dist / "static")),
+    name="static",
+)
+app.mount(
+    "/assets",
+    StaticFiles(directory=str(frontend_dist / "assets")),
+    name="assets",
+)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(request: Request, full_path: str):
+    return templates.TemplateResponse("index.html", {"request": request})
