@@ -1,6 +1,6 @@
 services:
   app:
-    image: llm-provider-monitor
+    image: ghcr.io/xyqyear/llm-provider-monitor
     ports:
       - "8000:8000"
     volumes:
