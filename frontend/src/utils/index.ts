@@ -54,3 +54,20 @@ export function getStatusBgColor(category: StatusCategory | null): string {
       return 'bg-gray-100';
   }
 }
+
+export function getUptimeColor(uptime: number): string {
+  let red: number;
+  let green: number;
+
+  if (uptime <= 50) {
+    red = 220;
+    green = Math.round(220 * (uptime / 50));
+  } else {
+    const normalized = (uptime - 50) / 50;
+    const curve = Math.pow(normalized, 6);
+    red = Math.round(220 * (1 - curve));
+    green = 220;
+  }
+
+  return `rgb(${red}, ${green}, 0)`;
+}

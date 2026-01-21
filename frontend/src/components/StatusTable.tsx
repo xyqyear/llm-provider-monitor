@@ -1,5 +1,5 @@
 import type { ProviderWithModels, TimelineBatchItem, TimeRange } from '../types';
-import { getStatusColor, getStatusTextColor, formatLatency, formatDate } from '../utils';
+import { getStatusColor, getStatusTextColor, formatLatency, formatDate, getUptimeColor } from '../utils';
 import { useResponsive } from '../hooks/useResponsive';
 import Button from './Button';
 import { MiniTimeline } from './MiniTimeline';
@@ -105,7 +105,7 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                       className={`w-3 h-3 rounded-full mr-2 ${getStatusColor(model.statusCategory)}`}
                     />
                     <span className={`text-sm ${getStatusTextColor(model.statusCategory)}`}>
-                      {model.statusName || '-'}
+                      {model.statusName || '未知'}
                     </span>
                   </span>
                 </td>
@@ -122,8 +122,7 @@ export function StatusTable({ providers, timelineData, timeRange, onTriggerProbe
                     if (!data) return <span className="text-gray-400">-</span>;
 
                     const uptime = data.uptimePercentage;
-                    const color = uptime >= 95 ? 'text-green-600' : uptime >= 90 ? 'text-yellow-600' : 'text-red-600';
-                    return <span className={`font-medium ${color}`}>{uptime.toFixed(1)}%</span>;
+                    return <span className="font-medium" style={{ color: getUptimeColor(uptime) }}>{uptime.toFixed(1)}%</span>;
                   })()}
                 </td>
                 <td className="px-3 py-4">
@@ -226,15 +225,13 @@ function StatusCard({
                       {model.displayName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {model.statusName || '-'} · {formatLatency(model.latencyMs)}
+                      {model.statusName || '未知'} · {formatLatency(model.latencyMs)}
                     </p>
                   </div>
                 </div>
                 {data && (
                   <div className="text-right">
-                    <p className={`text-sm font-medium ${data.uptimePercentage >= 95 ? 'text-green-600' :
-                        data.uptimePercentage >= 90 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
+                    <p className="text-sm font-medium" style={{ color: getUptimeColor(data.uptimePercentage) }}>
                       {data.uptimePercentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-gray-500">Uptime</p>

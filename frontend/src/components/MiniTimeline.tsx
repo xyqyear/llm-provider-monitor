@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TimelinePoint, TimeRange } from '../types';
+import { getUptimeColor } from '../utils';
 
 interface MiniTimelineProps {
   timeline: TimelinePoint[];
@@ -57,27 +58,8 @@ export function MiniTimeline({ timeline, timeRange }: MiniTimelineProps) {
     if (!point) return 'bg-gray-300';
 
     if (isAggregated) {
-      // For aggregated data, use uptime percentage to calculate color
-      // 0% = red (220,0,0), 50% = yellow (220,220,0), 100% = green (0,220,0)
       const uptime = point.uptimePercentage ?? 0;
-
-      let red: number;
-      let green: number;
-
-      if (uptime <= 50) {
-        // Interpolate from red to yellow (0% to 50%)
-        red = 220;
-        green = Math.round(220 * (uptime / 50));
-      } else {
-        // Interpolate from yellow to green (50% to 100%)
-        // Use power curve for steep change near 100%, then flatten
-        const normalized = (uptime - 50) / 50; // 0 at 50%, 1 at 100%
-        const curve = Math.pow(normalized, 6); // Power of 6 for steep initial change
-        red = Math.round(220 * (1 - curve));
-        green = 220;
-      }
-
-      return { backgroundColor: `rgb(${red}, ${green}, 0)` };
+      return { backgroundColor: getUptimeColor(uptime) };
     } else {
       // For non-aggregated data, use darker colors
       if (point.statusCategory === 'green') {

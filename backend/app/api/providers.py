@@ -58,9 +58,15 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
         models_status = []
         for pm in provider.models:
             latest = await probe_service.get_latest_status(provider.id, pm.model_id)
-            status_info = await status_service.get_status_info(
-                latest.status_id if latest else 1
-            )
+
+            # Only get status info if we have history data
+            if latest:
+                status_info = await status_service.get_status_info(latest.status_id)
+                status_name = status_info.name
+                status_category = status_info.category.value
+            else:
+                status_name = None
+                status_category = None
 
             # Get model info
             model_result = await db.execute(
@@ -75,8 +81,8 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
                     display_name=model.display_name if model else "",
                     enabled=pm.enabled,
                     status_id=latest.status_id if latest else None,
-                    status_name=status_info.name,
-                    status_category=status_info.category.value,
+                    status_name=status_name,
+                    status_category=status_category,
                     latency_ms=latest.latency_ms if latest else None,
                     checked_at=latest.checked_at if latest else None,
                 )
