@@ -3,6 +3,7 @@ import logging
 
 from sqlalchemy import select
 
+from ..checker import HTTPXChecker
 from ..database import async_session_maker
 from ..models import Provider
 from ..models.config import GlobalConfig
@@ -101,17 +102,41 @@ class ProbeScheduler:
 
     async def _task_loop(self, provider_id: int, model_id: int):
         task_id = f"{provider_id}_{model_id}"
+        checker = HTTPXChecker()
         while self.running:
             try:
+                # Fetch config in a short-lived session
                 async with async_session_maker() as session:
                     probe_service = ProbeService(session)
-                    result = await probe_service.probe(provider_id, model_id)
-                    if result:
-                        logger.info(
-                            f"Probe completed: provider={provider_id}, "
-                            f"model={model_id}, status={result.status_id}, "
-                            f"latency={result.latency_ms}ms"
-                        )
+                    config = await probe_service.get_probe_config(provider_id, model_id)
+
+                if not config:
+                    # Provider/model disabled or not found, stop task
+                    break
+
+                # Execute HTTP check without holding a database connection
+                check_result = await checker.check(
+                    base_url=config.base_url,
+                    auth_token=config.auth_token,
+                    model=config.model_name,
+                    prompt=config.prompt,
+                    timeout=config.timeout,
+                    template_method=config.template_method,
+                    template_url=config.template_url,
+                    template_headers=config.template_headers,
+                    template_body=config.template_body,
+                    system_prompt=config.system_prompt,
+                )
+
+                # Save result in a short-lived session
+                async with async_session_maker() as session:
+                    probe_service = ProbeService(session)
+                    result = await probe_service.save_probe_result(config, check_result)
+                    logger.info(
+                        f"Probe completed: provider={provider_id}, "
+                        f"model={model_id}, status={result.status_id}, "
+                        f"latency={result.latency_ms}ms"
+                    )
 
                 interval, _ = await self._get_provider_config(provider_id)
                 await asyncio.sleep(interval)

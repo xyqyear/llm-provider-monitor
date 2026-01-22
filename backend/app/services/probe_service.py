@@ -1,5 +1,6 @@
 import json
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,10 +12,27 @@ from ..models.config import GlobalConfig
 from .status_service import StatusService
 
 
+@dataclass
+class ProbeConfig:
+    """Configuration data needed to execute a probe."""
+
+    provider_id: int
+    model_id: int
+    base_url: str
+    auth_token: str
+    model_name: str
+    prompt: str
+    timeout: int
+    template_method: str
+    template_url: str
+    template_headers: str
+    template_body: str
+    system_prompt: str | None
+
+
 class ProbeService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.checker = HTTPXChecker()
         self.status_service = StatusService(db)
 
     async def get_config_value(self, key: str, default: str = "") -> str:
@@ -25,8 +43,10 @@ class ProbeService:
         config = result.scalar_one_or_none()
         return config.value if config else default
 
-    async def probe(self, provider_id: int, model_id: int) -> ProbeHistory | None:
-        """Execute a probe for a provider-model combination."""
+    async def get_probe_config(
+        self, provider_id: int, model_id: int
+    ) -> ProbeConfig | None:
+        """Fetch all configuration needed for a probe without holding the session."""
         # Get provider
         result = await self.db.execute(
             select(Provider).where(Provider.id == provider_id)
@@ -59,7 +79,6 @@ class ProbeService:
         # Get template
         template = model.template
         if not template:
-            # No template configured, skip
             return None
 
         # Determine prompt and timeout
@@ -83,11 +102,12 @@ class ProbeService:
             except json.JSONDecodeError:
                 pass
 
-        # Execute check
-        check_result: CheckResult = await self.checker.check(
+        return ProbeConfig(
+            provider_id=provider_id,
+            model_id=model_id,
             base_url=provider.base_url,
             auth_token=provider.auth_token,
-            model=actual_model_name,
+            model_name=actual_model_name,
             prompt=prompt,
             timeout=timeout,
             template_method=template.method,
@@ -97,7 +117,10 @@ class ProbeService:
             system_prompt=model.system_prompt,
         )
 
-        # Determine status code
+    async def save_probe_result(
+        self, config: ProbeConfig, check_result: CheckResult
+    ) -> ProbeHistory:
+        """Save probe result to database."""
         output = check_result.output
         if check_result.error:
             output = check_result.error + "\n" + output
@@ -106,25 +129,49 @@ class ProbeService:
             output, http_code=check_result.http_code
         )
 
-        # Record unmatched messages for manual classification
         message = None
         if not match_result.matched:
             message = output[:1000] if output else None
 
-        # Create history record
         history = ProbeHistory(
-            provider_id=provider_id,
-            model_id=model_id,
+            provider_id=config.provider_id,
+            model_id=config.model_id,
             status_id=match_result.status_id,
             latency_ms=check_result.latency_ms,
             message=message,
-            checked_at=datetime.utcnow(),
+            checked_at=datetime.now(timezone.utc),
         )
         self.db.add(history)
         await self.db.commit()
         await self.db.refresh(history)
 
         return history
+
+    async def probe(self, provider_id: int, model_id: int) -> ProbeHistory | None:
+        """Execute a probe for a provider-model combination.
+
+        Note: This method holds the database session during the HTTP request.
+        For scheduler use, prefer get_probe_config + execute_probe + save_probe_result.
+        """
+        config = await self.get_probe_config(provider_id, model_id)
+        if not config:
+            return None
+
+        checker = HTTPXChecker()
+        check_result = await checker.check(
+            base_url=config.base_url,
+            auth_token=config.auth_token,
+            model=config.model_name,
+            prompt=config.prompt,
+            timeout=config.timeout,
+            template_method=config.template_method,
+            template_url=config.template_url,
+            template_headers=config.template_headers,
+            template_body=config.template_body,
+            system_prompt=config.system_prompt,
+        )
+
+        return await self.save_probe_result(config, check_result)
 
     async def get_latest_status(
         self, provider_id: int, model_id: int
