@@ -1,9 +1,10 @@
 import json
 import re
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
+
+from .common import UTCDatetime
 
 HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
@@ -89,8 +90,8 @@ class RequestTemplateResponse(BaseModel):
     url: str
     headers: str
     body: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDatetime
+    updated_at: UTCDatetime
 
     class Config:
         from_attributes = True

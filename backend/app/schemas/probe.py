@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .common import UTCDatetime
+
 
 class ProbeHistoryResponse(BaseModel):
     id: int
@@ -13,15 +15,15 @@ class ProbeHistoryResponse(BaseModel):
     status_category: Literal["green", "yellow", "red"]
     latency_ms: int | None
     message: str | None
-    checked_at: datetime
+    checked_at: UTCDatetime
 
     class Config:
         from_attributes = True
 
 
 class TimelinePoint(BaseModel):
-    timestamp: datetime
-    time_range_end: datetime | None = (
+    timestamp: UTCDatetime
+    time_range_end: UTCDatetime | None = (
         None  # For aggregated data, marks end of time range
     )
     status_category: Literal["green", "yellow", "red"] | None = (
@@ -43,7 +45,7 @@ class CurrentStatus(BaseModel):
     status_name: str
     status_category: Literal["green", "yellow", "red"]
     latency_ms: int | None
-    checked_at: datetime | None
+    checked_at: UTCDatetime | None
 
 
 class ProbeTriggerResponse(BaseModel):
@@ -75,7 +77,7 @@ class CategoryStatusNames(BaseModel):
 class TimelineAggregation(BaseModel):
     """Internal aggregation state for timeline data."""
 
-    timestamp: datetime
+    timestamp: UTCDatetime
     counts: CategoryCounts
     status_names: CategoryStatusNames
     latencies: list[int] = Field(default_factory=list)

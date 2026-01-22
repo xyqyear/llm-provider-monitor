@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
+
+from .common import UTCDatetime
 
 
 class StatusConfigCreate(BaseModel):
@@ -41,7 +42,7 @@ class StatusConfigResponse(BaseModel):
     http_code_pattern: str | None
     response_regex: str | None
     priority: int
-    created_at: datetime
+    created_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -50,8 +51,8 @@ class StatusConfigResponse(BaseModel):
 class UnmatchedMessageResponse(BaseModel):
     message: str
     occurrence_count: int
-    first_seen: datetime
-    last_seen: datetime
+    first_seen: UTCDatetime
+    last_seen: UTCDatetime
 
 
 class PreviewMatchRequest(BaseModel):

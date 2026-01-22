@@ -1,6 +1,17 @@
-from typing import Generic, TypeVar
+from datetime import datetime
+from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PlainSerializer
+
+
+def _serialize_utc_datetime(dt: datetime | None) -> str | None:
+    """Serialize datetime to ISO format with Z suffix for UTC."""
+    if dt is None:
+        return None
+    return dt.isoformat() + "Z"
+
+
+UTCDatetime = Annotated[datetime, PlainSerializer(_serialize_utc_datetime, when_used="json")]
 
 T = TypeVar("T")
 

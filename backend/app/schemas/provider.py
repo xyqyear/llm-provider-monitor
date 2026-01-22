@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
+
+from .common import UTCDatetime
 
 
 class ProviderModelConfig(BaseModel):
@@ -55,8 +56,8 @@ class ProviderResponse(BaseModel):
     interval_seconds: int | None
     timeout_seconds: int | None
     model_name_mapping: dict[str, str] | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDatetime
+    updated_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -75,7 +76,7 @@ class ProviderModelStatus(BaseModel):
     status_name: str | None = None
     status_category: Literal["green", "yellow", "red"] | None = None
     latency_ms: int | None = None
-    checked_at: datetime | None = None
+    checked_at: UTCDatetime | None = None
 
 
 class ProviderWithModels(BaseModel):
