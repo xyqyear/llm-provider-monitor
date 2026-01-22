@@ -1,7 +1,5 @@
 import asyncio
-import heapq
 import logging
-from datetime import datetime, timedelta
 
 from sqlalchemy import select
 
@@ -16,14 +14,11 @@ logger = logging.getLogger(__name__)
 
 class ProbeScheduler:
     def __init__(self):
-        self.task_queue: list[tuple[datetime, str]] = []
         self.running = False
-        self.semaphore: asyncio.Semaphore | None = None
-        self._loop_task: asyncio.Task | None = None
+        self.tasks: dict[str, asyncio.Task] = {}
         self._cleanup_task: asyncio.Task | None = None
 
     async def _get_config_value(self, key: str, default: str = "") -> str:
-        """Get a global config value."""
         async with async_session_maker() as session:
             result = await session.execute(
                 select(GlobalConfig).where(GlobalConfig.key == key)
@@ -31,45 +26,46 @@ class ProbeScheduler:
             config = result.scalar_one_or_none()
             return config.value if config else default
 
-    async def _get_interval(self, provider_id: int) -> int:
-        """Get the check interval for a provider."""
+    async def _get_provider_config(self, provider_id: int) -> tuple[int, int]:
+        """Get interval and timeout for a provider."""
         async with async_session_maker() as session:
             result = await session.execute(
                 select(Provider).where(Provider.id == provider_id)
             )
             provider = result.scalar_one_or_none()
 
-            if provider and provider.interval_seconds:
-                return provider.interval_seconds
-
-            global_interval = await self._get_config_value(
-                "check_interval_seconds", "300"
+            global_interval = int(
+                await self._get_config_value("check_interval_seconds", "300")
             )
-            return int(global_interval)
+            global_timeout = int(
+                await self._get_config_value("check_timeout_seconds", "120")
+            )
+
+            if provider:
+                interval = provider.interval_seconds or global_interval
+                timeout = provider.timeout_seconds or global_timeout
+            else:
+                interval = global_interval
+                timeout = global_timeout
+
+            return interval, timeout
 
     async def start(self):
-        """Start the scheduler."""
         if self.running:
             return
 
         self.running = True
-        max_parallel = int(await self._get_config_value("max_parallel_checks", "3"))
-        self.semaphore = asyncio.Semaphore(max_parallel)
-
-        await self._schedule_all_tasks()
-        self._loop_task = asyncio.create_task(self._run_loop())
+        await self._start_all_tasks()
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
         logger.info("Probe scheduler started")
 
     async def stop(self):
-        """Stop the scheduler."""
         self.running = False
-        if self._loop_task:
-            self._loop_task.cancel()
-            try:
-                await self._loop_task
-            except asyncio.CancelledError:
-                pass
+        for task in self.tasks.values():
+            task.cancel()
+        if self.tasks:
+            await asyncio.gather(*self.tasks.values(), return_exceptions=True)
+        self.tasks.clear()
         if self._cleanup_task:
             self._cleanup_task.cancel()
             try:
@@ -78,60 +74,35 @@ class ProbeScheduler:
                 pass
         logger.info("Probe scheduler stopped")
 
-    async def _schedule_all_tasks(self):
-        """Schedule all enabled tasks."""
+    async def _start_all_tasks(self):
         async with async_session_maker() as session:
             probe_service = ProbeService(session)
-            tasks = await probe_service.get_all_enabled_tasks()
+            enabled_tasks = await probe_service.get_all_enabled_tasks()
 
-        self.task_queue.clear()
-        now = datetime.now()
+        for provider_id, model_id in enabled_tasks:
+            self._start_task(provider_id, model_id)
 
-        for provider_id, model_id in tasks:
-            task_id = f"{provider_id}_{model_id}"
-            heapq.heappush(self.task_queue, (now, task_id))
+        logger.info(f"Started {len(enabled_tasks)} probe tasks")
 
-        logger.info(f"Scheduled {len(tasks)} probe tasks")
+    def _start_task(self, provider_id: int, model_id: int):
+        task_id = f"{provider_id}_{model_id}"
+        if task_id not in self.tasks or self.tasks[task_id].done():
+            self.tasks[task_id] = asyncio.create_task(
+                self._task_loop(provider_id, model_id)
+            )
+            logger.debug(f"Started task {task_id}")
 
-    async def refresh_tasks(self):
-        """Refresh the task queue (called when providers/models change)."""
-        await self._schedule_all_tasks()
+    def _stop_task(self, provider_id: int, model_id: int):
+        task_id = f"{provider_id}_{model_id}"
+        if task_id in self.tasks:
+            self.tasks[task_id].cancel()
+            del self.tasks[task_id]
+            logger.debug(f"Stopped task {task_id}")
 
-    async def _run_loop(self):
-        """Main scheduler loop."""
+    async def _task_loop(self, provider_id: int, model_id: int):
+        task_id = f"{provider_id}_{model_id}"
         while self.running:
             try:
-                if not self.task_queue:
-                    await asyncio.sleep(1)
-                    continue
-
-                next_time, task_id = self.task_queue[0]
-                now = datetime.now()
-                wait_seconds = (next_time - now).total_seconds()
-
-                if wait_seconds > 0:
-                    await asyncio.sleep(min(wait_seconds, 1))
-                    continue
-
-                heapq.heappop(self.task_queue)
-                asyncio.create_task(self._execute_task(task_id))
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error in scheduler loop: {e}")
-                await asyncio.sleep(1)
-
-    async def _execute_task(self, task_id: str):
-        """Execute a single probe task."""
-        if not self.semaphore:
-            return
-
-        async with self.semaphore:
-            try:
-                provider_id, model_id = task_id.split("_")
-                provider_id = int(provider_id)
-                model_id = int(model_id)
-
                 async with async_session_maker() as session:
                     probe_service = ProbeService(session)
                     result = await probe_service.probe(provider_id, model_id)
@@ -141,23 +112,63 @@ class ProbeScheduler:
                             f"model={model_id}, status={result.status_id}, "
                             f"latency={result.latency_ms}ms"
                         )
+
+                interval, _ = await self._get_provider_config(provider_id)
+                await asyncio.sleep(interval)
+            except asyncio.CancelledError:
+                break
             except Exception as e:
-                logger.error(f"Error executing probe task {task_id}: {e}")
-            finally:
-                # Reschedule the task
-                try:
-                    provider_id = int(task_id.split("_")[0])
-                    interval = await self._get_interval(provider_id)
-                    next_time = datetime.now() + timedelta(seconds=interval)
-                    heapq.heappush(self.task_queue, (next_time, task_id))
-                except Exception as e:
-                    logger.error(f"Error rescheduling task {task_id}: {e}")
+                logger.error(f"Error in task {task_id}: {e}")
+                await asyncio.sleep(60)
+
+    async def refresh_tasks(self):
+        """Refresh task list when providers/models change."""
+        async with async_session_maker() as session:
+            probe_service = ProbeService(session)
+            enabled_tasks = await probe_service.get_all_enabled_tasks()
+
+        enabled_set = {f"{p}_{m}" for p, m in enabled_tasks}
+        current_set = set(self.tasks.keys())
+
+        for task_id in current_set - enabled_set:
+            provider_id, model_id = map(int, task_id.split("_"))
+            self._stop_task(provider_id, model_id)
+
+        for task_id in enabled_set - current_set:
+            provider_id, model_id = map(int, task_id.split("_"))
+            self._start_task(provider_id, model_id)
+
+        logger.info(
+            f"Tasks refreshed: {len(self.tasks)} active, "
+            f"added {len(enabled_set - current_set)}, "
+            f"removed {len(current_set - enabled_set)}"
+        )
+
+    async def restart_provider_tasks(self, provider_id: int):
+        """Restart all tasks for a provider (when config changes)."""
+        tasks_to_restart = [
+            (pid, mid)
+            for task_id in list(self.tasks.keys())
+            for pid, mid in [map(int, task_id.split("_"))]
+            if pid == provider_id
+        ]
+
+        for pid, mid in tasks_to_restart:
+            self._stop_task(pid, mid)
+
+        async with async_session_maker() as session:
+            probe_service = ProbeService(session)
+            enabled_tasks = await probe_service.get_all_enabled_tasks()
+
+        for pid, mid in enabled_tasks:
+            if pid == provider_id:
+                self._start_task(pid, mid)
+
+        logger.info(f"Restarted tasks for provider {provider_id}")
 
     async def _cleanup_loop(self):
-        """Periodic cleanup of old data."""
         while self.running:
             try:
-                # Run cleanup once per day
                 await asyncio.sleep(86400)
 
                 async with async_session_maker() as session:
@@ -172,5 +183,4 @@ class ProbeScheduler:
                 logger.error(f"Error in cleanup loop: {e}")
 
 
-# Global scheduler instance
 scheduler = ProbeScheduler()

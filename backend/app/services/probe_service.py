@@ -68,7 +68,10 @@ class ProbeService:
             or model.default_prompt
             or "1+1等于几？只回答数字。"
         )
-        timeout = int(await self.get_config_value("check_timeout_seconds", "120"))
+        global_timeout = int(
+            await self.get_config_value("check_timeout_seconds", "120")
+        )
+        timeout = provider.timeout_seconds or global_timeout
 
         # Get the model name to use (apply mapping if exists)
         actual_model_name = model.model_name

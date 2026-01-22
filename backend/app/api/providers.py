@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from ..database import get_db
 from ..models import Model, Provider, ProviderModel
+from ..models.config import GlobalConfig
 from ..scheduler.probe_scheduler import scheduler
 from ..schemas.common import MessageResponse
 from ..schemas.provider import (
@@ -26,7 +27,6 @@ router = APIRouter()
 
 
 def parse_model_name_mapping(mapping_str: str | None) -> dict[str, str] | None:
-    """Parse model_name_mapping from JSON string to dict."""
     if not mapping_str:
         return None
     try:
@@ -36,10 +36,41 @@ def parse_model_name_mapping(mapping_str: str | None) -> dict[str, str] | None:
 
 
 def serialize_model_name_mapping(mapping: dict[str, str] | None) -> str | None:
-    """Serialize model_name_mapping from dict to JSON string."""
     if not mapping:
         return None
     return json.dumps(mapping)
+
+
+async def _get_global_config(db: AsyncSession) -> tuple[int, int]:
+    """Get global interval and timeout."""
+    result = await db.execute(select(GlobalConfig))
+    configs = {c.key: c.value for c in result.scalars().all()}
+    interval = int(configs.get("check_interval_seconds", "300"))
+    timeout = int(configs.get("check_timeout_seconds", "120"))
+    return interval, timeout
+
+
+async def validate_provider_timing(
+    db: AsyncSession,
+    interval_seconds: int | None,
+    timeout_seconds: int | None,
+    provider_name: str = "供应商",
+):
+    """Validate that timeout < interval for a provider."""
+    global_interval, global_timeout = await _get_global_config(db)
+
+    effective_interval = (
+        interval_seconds if interval_seconds is not None else global_interval
+    )
+    effective_timeout = (
+        timeout_seconds if timeout_seconds is not None else global_timeout
+    )
+
+    if effective_timeout >= effective_interval:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{provider_name} 的超时时间 ({effective_timeout}s) 必须小于检测间隔 ({effective_interval}s)",
+        )
 
 
 @router.get("", response_model=list[ProviderWithModels])
@@ -59,7 +90,6 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
         for pm in provider.models:
             latest = await probe_service.get_latest_status(provider.id, pm.model_id)
 
-            # Only get status info if we have history data
             if latest:
                 status_info = await status_service.get_status_info(latest.status_id)
                 status_name = status_info.name
@@ -68,7 +98,6 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
                 status_name = None
                 status_category = None
 
-            # Get model info
             model_result = await db.execute(
                 select(Model).where(Model.id == pm.model_id)
             )
@@ -96,6 +125,7 @@ async def get_providers_status(db: AsyncSession = Depends(get_db)):
                 website=provider.website,
                 enabled=provider.enabled,
                 interval_seconds=provider.interval_seconds,
+                timeout_seconds=provider.timeout_seconds,
                 model_name_mapping=parse_model_name_mapping(
                     provider.model_name_mapping
                 ),
@@ -115,7 +145,6 @@ async def get_providers_admin(
     result = await db.execute(select(Provider).order_by(Provider.name))
     providers = result.scalars().all()
 
-    # Convert model_name_mapping to dict for each provider
     response = []
     for p in providers:
         response.append(
@@ -127,6 +156,7 @@ async def get_providers_admin(
                 website=p.website,
                 enabled=p.enabled,
                 interval_seconds=p.interval_seconds,
+                timeout_seconds=p.timeout_seconds,
                 model_name_mapping=parse_model_name_mapping(p.model_name_mapping),
                 created_at=p.created_at,
                 updated_at=p.updated_at,
@@ -142,10 +172,16 @@ async def create_provider(
     _: bool = Depends(verify_admin),
 ):
     """Create a new provider (admin only)."""
-    # Check if name already exists
     result = await db.execute(select(Provider).where(Provider.name == provider.name))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="供应商名称已存在")
+
+    await validate_provider_timing(
+        db,
+        provider.interval_seconds,
+        provider.timeout_seconds,
+        provider.name,
+    )
 
     new_provider = Provider(
         name=provider.name,
@@ -154,13 +190,13 @@ async def create_provider(
         website=provider.website,
         enabled=provider.enabled,
         interval_seconds=provider.interval_seconds,
+        timeout_seconds=provider.timeout_seconds,
         model_name_mapping=serialize_model_name_mapping(provider.model_name_mapping),
     )
     db.add(new_provider)
     await db.commit()
     await db.refresh(new_provider)
 
-    # Add models if specified
     for model_config in provider.models:
         pm = ProviderModel(
             provider_id=new_provider.id,
@@ -181,6 +217,7 @@ async def create_provider(
         website=new_provider.website,
         enabled=new_provider.enabled,
         interval_seconds=new_provider.interval_seconds,
+        timeout_seconds=new_provider.timeout_seconds,
         model_name_mapping=parse_model_name_mapping(new_provider.model_name_mapping),
         created_at=new_provider.created_at,
         updated_at=new_provider.updated_at,
@@ -202,7 +239,10 @@ async def update_provider(
 
     update_data = provider.model_dump(exclude_unset=True)
 
-    # Handle model_name_mapping serialization
+    new_interval = update_data.get("interval_seconds", existing.interval_seconds)
+    new_timeout = update_data.get("timeout_seconds", existing.timeout_seconds)
+    await validate_provider_timing(db, new_interval, new_timeout, existing.name)
+
     if "model_name_mapping" in update_data:
         update_data["model_name_mapping"] = serialize_model_name_mapping(
             update_data["model_name_mapping"]
@@ -213,7 +253,11 @@ async def update_provider(
 
     await db.commit()
     await db.refresh(existing)
-    await scheduler.refresh_tasks()
+
+    if "interval_seconds" in update_data or "timeout_seconds" in update_data:
+        await scheduler.restart_provider_tasks(provider_id)
+    else:
+        await scheduler.refresh_tasks()
 
     return ProviderResponse(
         id=existing.id,
@@ -222,6 +266,7 @@ async def update_provider(
         website=existing.website,
         enabled=existing.enabled,
         interval_seconds=existing.interval_seconds,
+        timeout_seconds=existing.timeout_seconds,
         model_name_mapping=parse_model_name_mapping(existing.model_name_mapping),
         created_at=existing.created_at,
         updated_at=existing.updated_at,
@@ -260,17 +305,14 @@ async def configure_provider_models(
     if not provider:
         raise HTTPException(status_code=404, detail="供应商不存在")
 
-    # Remove existing provider_models
     result = await db.execute(
         select(ProviderModel).where(ProviderModel.provider_id == provider_id)
     )
     for pm in result.scalars().all():
         await db.delete(pm)
 
-    # Flush the deletes before adding new records to avoid unique constraint violation
     await db.flush()
 
-    # Add new ones
     for model_config in models:
         pm = ProviderModel(
             provider_id=provider_id,

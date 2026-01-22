@@ -21,9 +21,6 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv venv /app/backend/.venv
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
-COPY backend/ ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
 
 FROM python:3.13-alpine AS runtime
 WORKDIR /app
@@ -35,9 +32,7 @@ ENV PYTHONUNBUFFERED=1
 RUN apk add --no-cache libffi openssl libstdc++ libgcc
 
 COPY --from=backend-venv /app/backend/.venv /app/backend/.venv
-COPY --from=backend-venv /app/backend/app /app/backend/app
-COPY --from=backend-venv /app/backend/run.py /app/backend/run.py
-COPY --from=backend-venv /app/backend/pyproject.toml /app/backend/pyproject.toml
+COPY backend/ /app/backend/
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
 EXPOSE 8000

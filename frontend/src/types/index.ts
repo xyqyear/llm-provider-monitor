@@ -88,6 +88,7 @@ export interface ProviderWithModels {
   website: string | null;
   enabled: boolean;
   intervalSeconds: number | null;
+  timeoutSeconds: number | null;
   modelNameMapping: Record<string, string> | null;
   models: ProviderModelStatus[];
 }
@@ -100,6 +101,7 @@ export interface ProviderAdmin {
   website: string | null;
   enabled: boolean;
   intervalSeconds: number | null;
+  timeoutSeconds: number | null;
   modelNameMapping: Record<string, string> | null;
   createdAt: string;
   updatedAt: string;
@@ -119,6 +121,7 @@ export interface ProviderCreate {
   website?: string | null;
   enabled?: boolean;
   intervalSeconds?: number | null;
+  timeoutSeconds?: number | null;
   modelNameMapping?: Record<string, string> | null;
   models?: ProviderModelConfig[];
 }
@@ -130,6 +133,7 @@ export interface ProviderUpdate {
   website?: string | null;
   enabled?: boolean;
   intervalSeconds?: number | null;
+  timeoutSeconds?: number | null;
   modelNameMapping?: Record<string, string> | null;
 }
 
@@ -199,7 +203,6 @@ export type TimeRange = '90min' | '24h' | '7d' | '30d';
 export interface GlobalConfig {
   checkIntervalSeconds: number;
   checkTimeoutSeconds: number;
-  maxParallelChecks: number;
   dataRetentionDays: number;
   hasAdminPassword: boolean;
 }
@@ -207,7 +210,6 @@ export interface GlobalConfig {
 export interface GlobalConfigUpdate {
   checkIntervalSeconds?: number;
   checkTimeoutSeconds?: number;
-  maxParallelChecks?: number;
   dataRetentionDays?: number;
   adminPassword?: string;
 }

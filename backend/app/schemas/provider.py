@@ -18,6 +18,7 @@ class ProviderCreate(BaseModel):
     website: str | None = None
     enabled: bool = True
     interval_seconds: int | None = None
+    timeout_seconds: int | None = None
     model_name_mapping: dict[str, str] | None = (
         None  # {"cc-haiku": "claude-3-haiku-20240307"}
     )
@@ -31,6 +32,7 @@ class ProviderUpdate(BaseModel):
     website: str | None = None
     enabled: bool | None = None
     interval_seconds: int | None = None
+    timeout_seconds: int | None = None
     model_name_mapping: dict[str, str] | None = None
 
 
@@ -51,6 +53,7 @@ class ProviderResponse(BaseModel):
     website: str | None
     enabled: bool
     interval_seconds: int | None
+    timeout_seconds: int | None
     model_name_mapping: dict[str, str] | None = None
     created_at: datetime
     updated_at: datetime
@@ -82,6 +85,7 @@ class ProviderWithModels(BaseModel):
     website: str | None
     enabled: bool
     interval_seconds: int | None
+    timeout_seconds: int | None
     model_name_mapping: dict[str, str] | None = None
     models: list[ProviderModelStatus]
 

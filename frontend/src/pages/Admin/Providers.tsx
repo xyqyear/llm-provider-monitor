@@ -17,6 +17,7 @@ export function ProvidersAdmin() {
     website: '',
     enabled: true,
     intervalSeconds: '',
+    timeoutSeconds: '',
     modelNameMapping: {} as Record<string, string>,
   });
   const [selectedModels, setSelectedModels] = useState<number[]>([]);
@@ -49,6 +50,7 @@ export function ProvidersAdmin() {
       website: '',
       enabled: true,
       intervalSeconds: '',
+      timeoutSeconds: '',
       modelNameMapping: {},
     });
     setSelectedModels([]);
@@ -67,6 +69,7 @@ export function ProvidersAdmin() {
       website: provider.website || '',
       enabled: provider.enabled,
       intervalSeconds: provider.intervalSeconds?.toString() || '',
+      timeoutSeconds: provider.timeoutSeconds?.toString() || '',
       modelNameMapping: provider.modelNameMapping || {},
     });
     setEditingId(provider.id);
@@ -105,6 +108,7 @@ export function ProvidersAdmin() {
         website: formData.website || null,
         enabled: formData.enabled,
         intervalSeconds: formData.intervalSeconds ? parseInt(formData.intervalSeconds) : null,
+        timeoutSeconds: formData.timeoutSeconds ? parseInt(formData.timeoutSeconds) : null,
         modelNameMapping,
       };
 
@@ -255,6 +259,19 @@ export function ProvidersAdmin() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="留空使用全局配置"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  超时时间 (秒)
+                </label>
+                <input
+                  type="number"
+                  value={formData.timeoutSeconds}
+                  onChange={e => setFormData({ ...formData, timeoutSeconds: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="留空使用全局配置"
+                />
+                <p className="mt-1 text-xs text-gray-500">必须小于检测间隔</p>
               </div>
             </div>
 
